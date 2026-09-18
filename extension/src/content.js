@@ -20,9 +20,24 @@
     "dexview.com",
     "dextools.io",
     "ape.pro",
-    "jup.ag"
+    "jup.ag",
+    "raydium.io",
+    "solscan.io",
+    "solana.fm"
   ];
 
+  function isSupportedTokenHost(host) {
+    if (!host) return false;
+    const clean = String(host).toLowerCase().split(":")[0];
+    return KNOWN_TOKEN_HOSTS.some((item) => clean === item || clean.endsWith("." + item));
+  }
+
+  // If not running on a supported crypto token host, do nothing.
+  if (typeof window === "undefined" || !document || !location || location.protocol === "chrome:" || !isSupportedTokenHost(location.host)) {
+    return;
+  }
+
+  let userDismissed = false;
   let scanTimer = 0;
   let lastSignature = "";
   let observer = null;
@@ -367,19 +382,27 @@
     const originalReplaceState = history.replaceState;
 
     history.pushState = function pushState(...args) {
+      userDismissed = false;
       const result = originalPushState.apply(this, args);
       scheduleScan("pushState", true);
       return result;
     };
 
     history.replaceState = function replaceState(...args) {
+      userDismissed = false;
       const result = originalReplaceState.apply(this, args);
       scheduleScan("replaceState", true);
       return result;
     };
 
-    window.addEventListener("popstate", () => scheduleScan("popstate", true));
-    window.addEventListener("hashchange", () => scheduleScan("hashchange", true));
+    window.addEventListener("popstate", () => {
+      userDismissed = false;
+      scheduleScan("popstate", true);
+    });
+    window.addEventListener("hashchange", () => {
+      userDismissed = false;
+      scheduleScan("hashchange", true);
+    });
   }
 
   function installLifecycleScanHooks() {
@@ -448,6 +471,25 @@
       currentScanResult = null;
       removeOverlay();
       clearPageWalletMarkers();
+      return;
+    }
+
+    // Only display automatic in-page overlay if a valid token with DEX pair or RugCheck report was verified,
+    // or if the user explicitly triggered a manual scan.
+    const isVerifiedToken = Boolean(
+      result.dex?.pair ||
+      result.rugcheck?.ok ||
+      (result.level && result.level !== "unknown")
+    );
+    const isManual = Boolean(state?.force || state?.reason === "manual");
+
+    if (!isVerifiedToken && !isManual) {
+      currentScanResult = result;
+      removeOverlay();
+      return;
+    }
+
+    if (userDismissed && !isManual) {
       return;
     }
 
@@ -967,6 +1009,7 @@
     });
 
     root.querySelector("[data-action='close']")?.addEventListener("click", () => {
+      userDismissed = true;
       removeOverlay();
     });
 

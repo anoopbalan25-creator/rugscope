@@ -11,10 +11,10 @@
     "tabs"
   ],
   "host_permissions": [
-    "<all_urls>",
     "https://api.dexscreener.com/*",
     "https://api.geckoterminal.com/*",
-    "https://api.rugcheck.xyz/*"
+    "https://api.rugcheck.xyz/*",
+    "https://api.mainnet-beta.solana.com/*"
   ],
   "background": {
     "service_worker": "src/background.js",
@@ -23,7 +23,37 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "*://pump.fun/*",
+        "*://*.pump.fun/*",
+        "*://dexscreener.com/*",
+        "*://*.dexscreener.com/*",
+        "*://birdeye.so/*",
+        "*://*.birdeye.so/*",
+        "*://gmgn.ai/*",
+        "*://*.gmgn.ai/*",
+        "*://geckoterminal.com/*",
+        "*://*.geckoterminal.com/*",
+        "*://photon-sol.tinyastro.io/*",
+        "*://bullx.io/*",
+        "*://*.bullx.io/*",
+        "*://defined.fi/*",
+        "*://*.defined.fi/*",
+        "*://dexview.com/*",
+        "*://*.dexview.com/*",
+        "*://dextools.io/*",
+        "*://*.dextools.io/*",
+        "*://ape.pro/*",
+        "*://*.ape.pro/*",
+        "*://jup.ag/*",
+        "*://*.jup.ag/*",
+        "*://raydium.io/*",
+        "*://*.raydium.io/*",
+        "*://solscan.io/*",
+        "*://*.solscan.io/*",
+        "*://solana.fm/*",
+        "*://*.solana.fm/*",
+        "*://axiom.trade/*",
+        "*://*.axiom.trade/*"
       ],
       "js": [
         "src/content.js"
@@ -54,7 +84,37 @@
         "assets/logo.png"
       ],
       "matches": [
-        "<all_urls>"
+        "*://pump.fun/*",
+        "*://*.pump.fun/*",
+        "*://dexscreener.com/*",
+        "*://*.dexscreener.com/*",
+        "*://birdeye.so/*",
+        "*://*.birdeye.so/*",
+        "*://gmgn.ai/*",
+        "*://*.gmgn.ai/*",
+        "*://geckoterminal.com/*",
+        "*://*.geckoterminal.com/*",
+        "*://photon-sol.tinyastro.io/*",
+        "*://bullx.io/*",
+        "*://*.bullx.io/*",
+        "*://defined.fi/*",
+        "*://*.defined.fi/*",
+        "*://dexview.com/*",
+        "*://*.dexview.com/*",
+        "*://dextools.io/*",
+        "*://*.dextools.io/*",
+        "*://ape.pro/*",
+        "*://*.ape.pro/*",
+        "*://jup.ag/*",
+        "*://*.jup.ag/*",
+        "*://raydium.io/*",
+        "*://*.raydium.io/*",
+        "*://solscan.io/*",
+        "*://*.solscan.io/*",
+        "*://solana.fm/*",
+        "*://*.solana.fm/*",
+        "*://axiom.trade/*",
+        "*://*.axiom.trade/*"
       ]
     }
   ]
