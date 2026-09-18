@@ -5,20 +5,101 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Learn how Rugscope scans token pages, scores risk, and protects user privacy.">
     <title>Rugscope Docs - How It Works</title>
-    <link rel="icon" type="image/png" href="favicon.png">
+    <!-- Anti-FOUT Synchronous Theme Initializer -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('rugscope-theme') || 'system';
+          var isDark = saved === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            : saved === 'dark';
+          var theme = isDark ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.setAttribute('data-theme-choice', saved);
+          document.documentElement.style.colorScheme = theme;
+        } catch(e) {}
+      })();
+    </script>
+    <link rel="icon" type="image/png" sizes="128x128" href="assets/rugscope-icon.png">
+    <link rel="icon" type="image/png" href="assets/rugscope-logo.png">
+    <link rel="apple-touch-icon" href="assets/rugscope-icon.png">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <header class="topbar">
-      <a class="brand" href="index.html" aria-label="Rugscope home">
-        <img src="logo.png" alt="">
-        <span>Rugscope</span>
+    <header class="topbar scrolled">
+      <a class="brand" href="index.html" aria-label="RugScope AI home">
+        <img class="brand-logo" src="assets/rugscope-logo.png" alt="RugScope logo" width="40" height="40">
+        <span class="brand-text">RugScope</span>
+        <span class="brand-badge">AI 2.0</span>
       </a>
-      <nav aria-label="Primary">
-        <a href="index.html#signals">Signals</a>
-        <a href="index.html#install">Install</a>
-        <a href="docs.html">Docs</a>
+      <nav class="nav-menu" aria-label="Primary">
+        <a class="nav-link" href="index.html#scanner">Scanner</a>
+        <a class="nav-link" href="index.html#live-monitor">Live Feed</a>
+        <a class="nav-link" href="index.html#timeline">Timeline</a>
+        <a class="nav-link" href="index.html#wallet-graph">Wallet Map</a>
+        <a class="nav-link" href="index.html#signals">Defenses</a>
+        <a class="nav-link active" href="docs.html" style="color: var(--accent-purple); font-weight: 700;">Docs</a>
+        <!-- Mobile Theme Control -->
+        <div class="mobile-theme-row">
+          <span class="mobile-theme-label">Theme</span>
+          <div class="theme-switcher" role="group" aria-label="Mobile theme selector">
+            <button type="button" class="theme-btn" data-theme-value="dark" aria-label="Dark theme" title="Dark theme">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+            </button>
+            <button type="button" class="theme-btn" data-theme-value="light" aria-label="Light theme" title="Light theme">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </svg>
+            </button>
+            <button type="button" class="theme-btn" data-theme-value="system" aria-label="System theme" title="System theme">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 3v18c4.97 0 9-4.03 9-9s-4.03-9-9-9z" fill="currentColor"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
       </nav>
+      <div class="nav-actions">
+        <!-- Desktop Theme Control -->
+        <div class="theme-switcher desktop-theme-switcher" role="group" aria-label="Theme selector">
+          <button type="button" class="theme-btn" data-theme-value="dark" aria-label="Dark theme" title="Dark theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+          <button type="button" class="theme-btn" data-theme-value="light" aria-label="Light theme" title="Light theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          </button>
+          <button type="button" class="theme-btn" data-theme-value="system" aria-label="System theme" title="System theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 3v18c4.97 0 9-4.03 9-9s-4.03-9-9-9z" fill="currentColor"></path>
+            </svg>
+          </button>
+        </div>
+        <a class="btn btn-primary btn-sm" href="index.html#scanner">Open Terminal</a>
+      </div>
     </header>
 
     <main class="docs-main">
@@ -94,55 +175,210 @@
           <p>Drag the top of the Rugscope panel to move it. Use the lower-right handle to resize it. Rugscope saves the position and size locally, so the panel stays where you placed it during future scans.</p>
         </article>
 
-        <article class="doc-panel">
-          <h2>Understanding the score</h2>
-          <div class="risk-scale">
-            <div class="risk-item low">
-              <strong>Low</strong>
-              <span>No major warning signs were found from the available data.</span>
+        <article class="doc-panel" id="scoring">
+          <h2>Transparent 5-Pillar Risk Architecture</h2>
+          <p>RugScope AI does not use arbitrary single-number formulas. It evaluates tokens against five objective on-chain pillars totaling 100 points:</p>
+          <div class="pillar-guide-grid" style="margin-top: 14px;">
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">1. Authorities & Permissions</span>
+                <span class="guide-pillar-weight">30% Weight (Max 30 pts)</span>
+              </div>
+              <p>Audits active <code>mintTo</code> and <code>freezeAccount</code> keys, metadata mutability, and non-standard Token-2022 transfer fee extensions.</p>
             </div>
-            <div class="risk-item moderate">
-              <strong>Moderate</strong>
-              <span>Some caution signals are present, such as limited liquidity or a newer pair.</span>
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">2. Liquidity Depth & Lock Security</span>
+                <span class="guide-pillar-weight">25% Weight (Max 25 pts)</span>
+              </div>
+              <p>Scans for unlocked or burned LP tokens, micro-liquidity cushion (&lt; $1K or &lt; $10K), and severe FDV-to-liquidity exit ratios.</p>
             </div>
-            <div class="risk-item high">
-              <strong>High</strong>
-              <span>Multiple warning signs are present, such as thin liquidity, strong sell pressure, or risky authority signals.</span>
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">3. Holder Dispersal & Concentration</span>
+                <span class="guide-pillar-weight">20% Weight (Max 20 pts)</span>
+              </div>
+              <p>Identifies insider monopolization. Flags top 10 supply concentration &gt; 45% or &gt; 70%, and single non-pool whale domination.</p>
             </div>
-            <div class="risk-item critical">
-              <strong>Critical</strong>
-              <span>Rugscope found severe warnings, such as possible liquidity removal or no active market.</span>
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">4. Market Dynamics & Volume Pressure</span>
+                <span class="guide-pillar-weight">15% Weight (Max 15 pts)</span>
+              </div>
+              <p>Evaluates heavy sell-to-buy transaction pressure (&gt; 2.5x sell ratio), acute 1h/24h drawdowns, and rapid liquidity extraction.</p>
+            </div>
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">5. Maturity & Program Integrity</span>
+                <span class="guide-pillar-weight">10% Weight (Max 10 pts)</span>
+              </div>
+              <p>Checks pool creation age, bonding curve graduation status, and verified DEX router programs (Raydium, Orca, Meteora).</p>
             </div>
           </div>
         </article>
 
-        <article class="doc-panel">
-          <h2>Supported pages</h2>
-          <p>Rugscope can scan any normal Chrome tab where a token address appears. It is designed for trading and token pages such as pump.fun, Axiom, DEX Screener, GeckoTerminal, Birdeye, GMGN, BullX, DEXTools, and similar platforms.</p>
+        <article class="doc-panel" id="ai">
+          <h2>Grounded AI Forensic Synthesis</h2>
+          <p>Unlike generative text models that risk hallucinating non-existent blockchain transactions, RugScope's AI engine is strictly deterministic and evidence-bound. It directly ingests verified on-chain metrics from DexScreener, RugCheck, and Solana RPC, translating raw parameters into natural English summaries citing exact percentages, liquidity depth, and authority statuses with transparent ethical disclaimers.</p>
+        </article>
+
+        <article class="doc-panel" id="api">
+          <h2>RPC Fast Gateway & APIs</h2>
+          <p>RugScope provides a secure, server-side gateway to interact with Solana RPC and public telemetry:</p>
+          <div class="doc-grid">
+            <div>
+              <h3><code>POST /api/rpc</code></h3>
+              <p>Proxies Solana JSON-RPC requests (such as <code>getSignaturesForAddress</code> and <code>getAccountInfo</code>). When configured, routes through RPC Fast (<code>RPC_FAST_URL</code>, <code>RPC_FAST_API_KEY</code>) without leaking credentials to client browsers.</p>
+            </div>
+            <div>
+              <h3><code>GET /api/status</code></h3>
+              <p>Reports gateway health, active RPC provider (RPC Fast vs Solana Public Mainnet), and configuration state.</p>
+            </div>
+            <div>
+              <h3><code>GET /api/proxy?url=...</code></h3>
+              <p>Whitelisted CORS proxy for DexScreener and RugCheck REST endpoints with user-agent attribution.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="doc-panel" id="security">
+          <h2>Understanding the Score Scale</h2>
+          <div class="risk-scale">
+            <div class="risk-item low">
+              <strong>0–24 Low Risk</strong>
+              <span>Revoked authorities, verified locked liquidity, broad holder dispersal.</span>
+            </div>
+            <div class="risk-item moderate">
+              <strong>25–49 Moderate Risk</strong>
+              <span>Fair launch meme dynamics, elevated volatility, or nascent pool age.</span>
+            </div>
+            <div class="risk-item high">
+              <strong>50–74 High Risk</strong>
+              <span>Thin liquidity, heavy sell-side skew, or concentrated insider clusters.</span>
+            </div>
+            <div class="risk-item critical">
+              <strong>75–100 Critical Threat</strong>
+              <span>Active freeze or mint keys, unlocked micro-liquidity, impending capital loss.</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="doc-panel" id="changelog">
+          <h2>Hackathon Changelog & Feature Delta</h2>
+          <p>Transformations implemented for the Colosseum Crypto World's Fair Hackathon:</p>
+          <ul class="doc-list">
+            <li><strong>Added 5-Pillar Weighted Score Engine:</strong> Replaced monolithic score with transparent math-backed matrix.</li>
+            <li><strong>Added Grounded AI Explainer:</strong> Deterministic natural English synthesis of on-chain indicators.</li>
+            <li><strong>Added Dynamic Canvas Wallet Graph:</strong> Data-driven visualization of token mint, creator, pool, and real top holders.</li>
+            <li><strong>Added Real-Time Watch Mode:</strong> Live Solana RPC surveillance of specific tokens and wallet addresses.</li>
+            <li><strong>Added RPC Fast Integration:</strong> Secure backend gateway supporting RPC Fast without key exposure.</li>
+            <li><strong>Added Dedicated Demo Sandbox:</strong> Offline realistic threat archetypes (Bonk, Pump.fun, Honeypot, Liquidity Drain).</li>
+            <li><strong>Added Risk History Tracker:</strong> Local storage persistence with score and liquidity delta tracking.</li>
+          </ul>
         </article>
 
         <article class="doc-panel">
-          <h2>Privacy</h2>
-          <p>Rugscope looks for public token and wallet addresses you choose to track. It sends detected token addresses and watched wallet addresses to public market and trade APIs so it can build the report. It does not read wallet keys, seed phrases, passwords, cookies, or private messages.</p>
-        </article>
-
-        <article class="doc-panel">
-          <h2>Important note</h2>
-          <p>Rugscope is a risk scanner, not financial advice. A low score does not mean a token is safe, and a high score does not prove a scam. Use it as one more layer of information before making a decision.</p>
+          <h2>Important Disclaimer</h2>
+          <p>RugScope is an informational risk terminal and on-chain forensic utility, not financial or investment advice. While structural indicators like active freeze keys or unlocked pools strongly correlate with malicious drain events, automated heuristics do not constitute legal proof of developer intention. Always conduct independent verification.</p>
           <div class="doc-actions">
-            <a class="button primary" href="downloads/rugscope-extension.zip" download>Download Rugscope</a>
-            <a class="button secondary" href="index.html">Back Home</a>
+            <a class="button primary" href="downloads/rugscope-extension.zip" download>Download Extension</a>
+            <a class="button secondary" href="index.html">Open Web Terminal</a>
           </div>
         </article>
       </section>
     </main>
 
-    <footer class="footer">
-      <span>Rugscope is an informational risk scanner, not financial advice.</span>
-      <div class="footer-links">
-        <a href="index.html">Home</a>
-        <a href="downloads/rugscope-extension.zip" download>Download</a>
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-container">
+        <div class="footer-top-grid">
+          <!-- Brand & Tagline -->
+          <div class="footer-brand-col">
+            <a class="footer-brand-header" href="index.html" aria-label="RugScope AI home">
+              <img class="footer-brand-logo" src="assets/rugscope-logo.png" alt="RugScope logo" width="30" height="30">
+              <span class="footer-brand-name">RugScope</span>
+            </a>
+            <p class="footer-brand-desc">
+              AI-powered on-chain security intelligence for Solana traders and builders.
+            </p>
+            <div class="footer-motto-pills">
+              <span class="footer-motto-pill">Detect</span>
+              <span class="footer-motto-pill">Investigate</span>
+              <span class="footer-motto-pill">Protect</span>
+            </div>
+          </div>
+
+          <!-- Product Column -->
+          <div>
+            <h4 class="footer-col-title">Product</h4>
+            <ul class="footer-col-list">
+              <li><a href="index.html#scanner">Token Scanner</a></li>
+              <li><a href="index.html#live-monitor">Live Monitor</a></li>
+              <li><a href="index.html#scanResults">Risk Analysis</a></li>
+              <li><a href="downloads/rugscope-extension.zip" download>Browser Extension</a></li>
+            </ul>
+          </div>
+
+          <!-- Resources Column -->
+          <div>
+            <h4 class="footer-col-title">Resources</h4>
+            <ul class="footer-col-list">
+              <li><a href="docs.html">Documentation</a></li>
+              <li><a href="docs.html#api">API</a></li>
+              <li><a href="docs.html#security">Security</a></li>
+              <li><a href="docs.html#changelog">Changelog</a></li>
+            </ul>
+          </div>
+
+          <!-- Community Column -->
+          <div>
+            <h4 class="footer-col-title">Community</h4>
+            <ul class="footer-col-list">
+              <li><a href="https://x.com" target="_blank" rel="noopener noreferrer">X / Twitter</a></li>
+              <li><a href="https://t.me" target="_blank" rel="noopener noreferrer">Telegram</a></li>
+              <li><a href="https://discord.gg" target="_blank" rel="noopener noreferrer">Discord</a></li>
+              <li><a href="https://instagram.com" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+            </ul>
+          </div>
+
+          <!-- Follow Us Column -->
+          <div>
+            <h4 class="footer-col-title">Follow Us</h4>
+            <div class="footer-social-row">
+              <a class="social-btn" href="https://x.com" target="_blank" rel="noopener noreferrer" aria-label="RugScope on X">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+              </a>
+              <a class="social-btn" href="https://t.me" target="_blank" rel="noopener noreferrer" aria-label="RugScope on Telegram">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.002.001-.314 4.692c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
+                </svg>
+              </a>
+              <a class="social-btn" href="https://discord.gg" target="_blank" rel="noopener noreferrer" aria-label="RugScope on Discord">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+              </a>
+              <a class="social-btn" href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="RugScope on Instagram">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="footer-bottom-bar">
+          <div>&copy; 2026 RugScope. All rights reserved.</div>
+          <div class="solana-ecosystem-tag">
+            <span class="solana-circle-dot"></span>
+            <span>Built for the Solana ecosystem.</span>
+          </div>
+        </div>
       </div>
     </footer>
+    <script src="dashboard.js"></script>
   </body>
 </html>

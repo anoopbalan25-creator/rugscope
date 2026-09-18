@@ -1,0 +1,70 @@
+# ==============================================================================
+# RugScope AI - .gitignore
+# Security & Secret Protection for GitHub Repository
+# ==============================================================================
+
+# --- Secrets, Credentials & Environment Variables (CRITICAL) ---
+.env
+.env.*
+!.env.example
+*.env
+*.local
+*.secret
+secrets/
+credentials/
+credentials.json
+service-account*.json
+*.pem
+*.key
+*.cert
+*.crt
+id_rsa*
+id_ed25519*
+*.p12
+*.pfx
+
+# --- Node.js & Dependencies ---
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.npm/
+
+# --- Build Artifacts & Distribution ---
+dist/
+out/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# --- Operating System & Editor Files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# --- IDE & Editor Settings ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# --- Agent & Temporary Scratch Directories ---
+.gemini/
+.claude/
+.cursor/
+scratch/
+.tempmediaStorage/
+.system_generated/

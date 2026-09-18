@@ -3,101 +3,657 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Rugscope helps crypto traders spot token risk directly on the pages they already use.">
-    <title>Rugscope - Token Risk Scanner</title>
-    <link rel="icon" type="image/png" href="favicon.png">
+    <meta name="description" content="RugScope AI - Institutional-grade on-chain crypto security intelligence, automated honeypot detection, and real-time wallet tracking.">
+    <title>RugScope AI - Institutional Crypto Security & Risk Terminal</title>
+    <!-- Anti-FOUT Synchronous Theme Initializer -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('rugscope-theme') || 'system';
+          var isDark = saved === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            : saved === 'dark';
+          var theme = isDark ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.setAttribute('data-theme-choice', saved);
+          document.documentElement.style.colorScheme = theme;
+        } catch(e) {}
+      })();
+    </script>
+    <link rel="icon" type="image/png" sizes="128x128" href="assets/rugscope-icon.png">
+    <link rel="icon" type="image/png" href="assets/rugscope-logo.png">
+    <link rel="apple-touch-icon" href="assets/rugscope-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <!-- Sticky Navigation Bar -->
     <header class="topbar">
-      <a class="brand" href="#top" aria-label="Rugscope home">
-        <img src="logo.png" alt="">
-        <span>Rugscope</span>
+      <a class="brand" href="#top" aria-label="RugScope AI home">
+        <img class="brand-logo" src="assets/rugscope-logo.png" alt="RugScope logo" width="40" height="40">
+        <span class="brand-text">RugScope</span>
+        <span class="brand-badge">AI 2.0</span>
       </a>
-      <nav aria-label="Primary">
-        <a href="#signals">Signals</a>
-        <a href="#install">Install</a>
-        <a href="docs.html">Docs</a>
+
+      <nav class="nav-menu" id="mainNav" aria-label="Primary Navigation">
+        <a class="nav-link" href="#scanner">Scanner</a>
+        <a class="nav-link" href="#live-monitor">Live Feed</a>
+        <a class="nav-link" href="#timeline">Timeline</a>
+        <a class="nav-link" href="#wallet-graph">Wallet Map</a>
+        <a class="nav-link" href="#signals">Defenses</a>
+        <a class="nav-link" href="docs.html">Documentation</a>
+        <!-- Mobile Theme Control -->
+        <div class="mobile-theme-row">
+          <span class="mobile-theme-label">Theme</span>
+          <div class="theme-switcher" role="group" aria-label="Mobile theme selector">
+            <button type="button" class="theme-btn" data-theme-value="dark" aria-label="Dark theme" title="Dark theme">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+            </button>
+            <button type="button" class="theme-btn" data-theme-value="light" aria-label="Light theme" title="Light theme">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+              </svg>
+            </button>
+            <button type="button" class="theme-btn" data-theme-value="system" aria-label="System theme" title="System theme">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 3v18c4.97 0 9-4.03 9-9s-4.03-9-9-9z" fill="currentColor"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
       </nav>
+
+      <div class="nav-actions">
+        <!-- Desktop Theme Control -->
+        <div class="theme-switcher desktop-theme-switcher" role="group" aria-label="Theme selector">
+          <button type="button" class="theme-btn" data-theme-value="dark" aria-label="Dark theme" title="Dark theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+          <button type="button" class="theme-btn" data-theme-value="light" aria-label="Light theme" title="Light theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+          </button>
+          <button type="button" class="theme-btn" data-theme-value="system" aria-label="System theme" title="System theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 3v18c4.97 0 9-4.03 9-9s-4.03-9-9-9z" fill="currentColor"></path>
+            </svg>
+          </button>
+        </div>
+        <!-- Demo Mode Toggle -->
+        <button type="button" class="mode-toggle-btn" id="modeToggleBtn" aria-label="Toggle network mode" title="Switch between Live Mainnet and Demo Sandbox">
+          <span class="mode-dot live"></span>
+          <span>Live Mainnet</span>
+        </button>
+        <span class="rpc-status-badge" id="rpcStatusBadge" title="Solana RPC Gateway Status">RPC: Checking...</span>
+        <a class="btn btn-secondary btn-sm" href="downloads/rugscope-extension.zip" download>Download Extension</a>
+        <a class="btn btn-primary btn-sm" href="#scanner">Terminal Scan</a>
+        <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-label="Toggle navigation menu" aria-expanded="false">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+      </div>
     </header>
 
+    <!-- Hackathon Demo Sandbox Notification Banner -->
+    <div id="demoBanner" class="demo-banner hidden" role="region" aria-label="Sandbox Notice">
+      <div class="demo-banner-content">
+        <span class="demo-banner-tag">DEMO SANDBOX ACTIVE</span>
+        <span>Simulated on-chain forensic telemetry enabled for Colosseum Hackathon evaluation without mainnet RPC limits.</span>
+      </div>
+    </div>
+
     <main id="top">
-      <section class="hero">
-        <div class="hero-media" aria-hidden="true"></div>
-        <div class="hero-content">
-          <p class="eyebrow">Chrome Extension</p>
-          <h1>Rugscope</h1>
-          <p class="lede">See token risk while you browse trading pages. Rugscope checks the token on your screen, opens a movable risk panel, marks tracked wallet activity directly on the page, and shows risk details without making you leave the page.</p>
-          <div class="hero-actions">
-            <a class="button primary" href="downloads/rugscope-extension.zip" download>Download Rugscope</a>
-            <a class="button secondary" href="docs.html">How It Works</a>
-            <a class="button secondary" href="chrome://extensions">Open Chrome Extensions</a>
+      <!-- Hero Section with Security Radar Visual -->
+      <section class="hero-section" id="hero">
+        <div class="hero-grid">
+          <div class="hero-content reveal-on-scroll">
+            <div class="status-pill">
+              <span class="status-dot"></span>
+              <span>Threat Radar Active &bull; Real-Time RPC Sync</span>
+            </div>
+
+            <h1 class="hero-title">
+              Autonomous <br>
+              <span class="highlight">On-Chain Security</span> Intelligence
+            </h1>
+
+            <p class="hero-subtitle">
+              Instant honeypot detection, stealth liquidity extraction tracking, and creator wallet forensics for Solana and EVM token contracts.
+            </p>
+
+            <!-- Scanner Search Form -->
+            <div class="hero-scanner-box" id="scanner">
+              <form id="scanForm">
+                <div class="scanner-input-row">
+                  <span class="scanner-icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="8"/>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    id="tokenInput"
+                    class="scanner-input mono"
+                    placeholder="Enter Solana mint or EVM address (e.g., DezXAZ... or 0x532f...)"
+                    spellcheck="false"
+                    autocomplete="off"
+                    required
+                  >
+                  <button type="submit" id="scanButton" class="btn btn-primary">
+                    <span class="btn-text">Analyze Token</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                      <polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                  </button>
+                </div>
+              </form>
+
+              <!-- Quick Presets -->
+              <div class="preset-pills-row">
+                <span class="preset-label">Test Presets:</span>
+                <div id="presetPills" class="preset-pills-container"></div>
+              </div>
+            </div>
+
+            <!-- Loading State Notification -->
+            <div id="scanLoading" class="scan-loading-card hidden" role="status" aria-live="polite">
+              <div class="spinner"></div>
+              <div class="scan-loading-text" id="scanStepText">Connecting to DEX liquidity pools...</div>
+            </div>
+          </div>
+
+          <!-- Interactive Security Radar Graphic -->
+          <div class="hero-visual-wrapper reveal-on-scroll stagger-2">
+            <div class="radar-container" aria-hidden="true">
+              <div class="radar-ring r1"></div>
+              <div class="radar-ring r2"></div>
+              <div class="radar-ring r3"></div>
+              <div class="radar-sweep"></div>
+              <div class="radar-blip b1"></div>
+              <div class="radar-blip b2"></div>
+              <div class="radar-blip b3"></div>
+              <div class="radar-shield">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v5.7c0 4.54-3.14 8.78-7 9.88-3.86-1.1-7-5.34-7-9.88V6.3l7-3.12zm-1 5v6h2V8.18h-2zm0 8v2h2v-2h-2z"/>
+                </svg>
+              </div>
+            </div>
+
+            <div class="floating-data-card top-left">
+              <span class="status-pill" style="padding: 2px 8px; font-size: 11px;">Shield: Online</span>
+              <div style="font-weight: 700; margin-top: 4px;">24h Scanned Pools</div>
+              <div class="mono" style="color: var(--accent-cyan); font-weight: 700; font-size: 14px;">142,910</div>
+            </div>
+
+            <div class="floating-data-card bottom-right">
+              <span class="status-pill" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: var(--risk-crit); padding: 2px 8px; font-size: 11px;">Honeypot Alerts</span>
+              <div style="font-weight: 700; margin-top: 4px;">Threats Intercepted</div>
+              <div class="mono" style="color: var(--risk-crit); font-weight: 700; font-size: 14px;">1,428 Today</div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section id="signals" class="band">
-        <div class="section-head">
-          <p class="eyebrow">Live Page Scans</p>
-          <h2>Risk details where traders need them</h2>
+      <!-- Token Scan Results Section -->
+      <section id="scanResults" class="section-wrapper hidden" aria-live="polite">
+        <div class="section-header reveal-on-scroll">
+          <p class="section-eyebrow">On-Chain Forensic Report</p>
+          <h2 class="section-title">Token Security Diagnostic</h2>
+          <p class="section-desc">Comprehensive vulnerability breakdown synthesized across pool reserves, holder dispersal, and smart contract authorities.</p>
         </div>
-        <div class="signal-grid">
+
+        <div class="results-grid">
+          <!-- Column 1: Living Risk Score Ring -->
+          <div class="risk-summary-card reveal-on-scroll stagger-1">
+            <div class="score-ring-wrapper" id="scoreRingWrapper">
+              <svg viewBox="0 0 100 100">
+                <circle class="score-ring-bg" cx="50" cy="50" r="45"/>
+                <circle class="score-ring-progress" id="scoreRingCircle" cx="50" cy="50" r="45"/>
+              </svg>
+              <div class="score-center-text">
+                <span class="score-value" id="scoreNumber">0</span>
+                <span class="score-label">Risk Index</span>
+              </div>
+            </div>
+
+            <div class="badge-row">
+              <div class="risk-badge" id="riskBadge">SCANNING</div>
+              <div class="origin-badge live" id="originBadge">LIVE MAINNET</div>
+            </div>
+            <h3 class="token-name-title" id="tokenTitle">Detected Token</h3>
+            <p class="token-addr-text mono" id="tokenSubtitle">Scanning contract...</p>
+            <div class="token-price-tag mono" id="tokenPrice">$0.00</div>
+
+            <!-- Action Controls -->
+            <div class="scan-action-cluster">
+              <button type="button" class="btn btn-secondary btn-xs" id="openScoreModalBtn" title="Inspect mathematical point allocation">Scoring Formula</button>
+              <button type="button" class="btn btn-secondary btn-xs" id="watchTokenBtn" title="Activate live surveillance stream">Watch Token</button>
+              <button type="button" class="btn btn-secondary btn-xs" id="solscanBtn" title="Inspect token on Solscan">Solscan ↗</button>
+              <button type="button" class="btn btn-secondary btn-xs" id="copyReportBtn" title="Copy forensic summary">Copy Report</button>
+            </div>
+          </div>
+
+          <!-- Column 2: Facts & Flags Details Panel -->
+          <div class="details-panel reveal-on-scroll stagger-2">
+            <!-- AI Security Verdict Summary Box -->
+            <div class="ai-verdict-box">
+              <div class="ai-icon-shield" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <div>
+                <div class="ai-verdict-header">RugScope AI Forensic Assessment</div>
+                <p class="ai-verdict-content" id="aiVerdictText">Analyzing on-chain metrics...</p>
+                <div class="ai-verdict-disclaimer">Grounded heuristic synthesis. Evaluates structural vulnerabilities; does not guarantee developer intentions.</div>
+              </div>
+            </div>
+
+            <!-- Transparent 5-Pillar Risk Breakdown -->
+            <div class="section-subblock">
+              <div class="subblock-header">
+                <h4 class="subblock-title">Transparent 5-Pillar Risk Breakdown</h4>
+                <span class="subblock-hint">Weighted 100-point security matrix</span>
+              </div>
+              <div class="pillar-grid" id="pillarContainer"></div>
+            </div>
+
+            <!-- Verified Key Metrics Grid -->
+            <div class="section-subblock">
+              <h4 class="subblock-title">Verified Pool Metrics</h4>
+              <div class="facts-grid" id="factsGrid"></div>
+            </div>
+
+            <!-- Flagged Security Vectors -->
+            <div class="section-subblock">
+              <h4 class="subblock-title">Identified Risk Signals</h4>
+              <div class="flags-grid" id="flagsGrid"></div>
+            </div>
+
+            <!-- Top Supply Distribution & Insider Wallets -->
+            <div class="section-subblock">
+              <div class="subblock-header">
+                <h4 class="subblock-title">Top Supply Distribution & Insider Wallets</h4>
+                <span class="subblock-hint">On-chain holder concentration audit</span>
+              </div>
+              <div class="table-responsive">
+                <table class="holders-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Account Address</th>
+                      <th>Holdings %</th>
+                      <th>Entity Role</th>
+                    </tr>
+                  </thead>
+                  <tbody id="topHoldersTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Live Token Event Monitoring Stream -->
+      <section class="section-wrapper live-monitor-section" id="live-monitor">
+        <div class="live-feed-header reveal-on-scroll">
+          <div>
+            <div class="live-indicator-badge">
+              <span class="live-dot-pulse"></span>
+              <span>LIVE ON-CHAIN STREAM</span>
+            </div>
+            <h2 class="section-title" style="margin-top: 8px;">Real-Time Liquidity & Whale Surveillance</h2>
+            <div class="watch-target-indicator" id="watchTargetLabel">
+              <span>Surveillance Target: </span><span class="mono" style="color: var(--accent-cyan);">Network-wide DEX Swaps</span>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="liveToggleBtn" type="button">Pause Feed</button>
+        </div>
+
+        <div class="live-feed-container reveal-on-scroll stagger-1" id="liveFeedContainer" role="log" aria-live="polite">
+          <!-- Populated by dashboard.js -->
+        </div>
+      </section>
+
+      <!-- Investigation Timeline -->
+      <section class="section-wrapper timeline-section" id="timeline">
+        <div class="section-header reveal-on-scroll">
+          <p class="section-eyebrow">Forensic Sequence</p>
+          <h2 class="section-title">Automated Investigation Timeline</h2>
+          <p class="section-desc">Reconstructing contract genesis, creator transaction flow, initial liquidity creation, and holder concentration dynamics.</p>
+        </div>
+
+        <div class="timeline-flow reveal-on-scroll stagger-1">
+          <div class="timeline-step">
+            <div class="timeline-meta">
+              <span class="timeline-tag">Phase 01 &bull; Genesis</span>
+              <span class="timeline-time">Block Genesis</span>
+            </div>
+            <h3 class="timeline-step-title">Creator Wallet Funded</h3>
+            <p class="timeline-step-desc">Deployer wallet received funding via CEX or cross-chain bridge to cover contract deployment and liquidity provision fees.</p>
+          </div>
+
+          <div class="timeline-step">
+            <div class="timeline-meta">
+              <span class="timeline-tag">Phase 02 &bull; AMM Integration</span>
+              <span class="timeline-time">+1m 12s</span>
+            </div>
+            <h3 class="timeline-step-title">Liquidity Pool Created & Funded</h3>
+            <p class="timeline-step-desc">Creator supplied base tokens and paired asset (SOL / ETH) to initialize market maker reserves. LP token status verified.</p>
+          </div>
+
+          <div class="timeline-step">
+            <div class="timeline-meta">
+              <span class="timeline-tag">Phase 03 &bull; Market Launch</span>
+              <span class="timeline-time">+2m 04s</span>
+            </div>
+            <h3 class="timeline-step-title">Token Trading Activated</h3>
+            <p class="timeline-step-desc">Public swaps enabled on decentralized exchange. Initial pricing discovery commenced.</p>
+          </div>
+
+          <div class="timeline-step">
+            <div class="timeline-meta">
+              <span class="timeline-tag">Phase 04 &bull; Accumulation</span>
+              <span class="timeline-time">+4m 45s</span>
+            </div>
+            <h3 class="timeline-step-title">Whale & Sniper Bot Inflow</h3>
+            <p class="timeline-step-desc">High-speed bot transactions and early cluster wallets accumulated large supply portions within initial blocks.</p>
+          </div>
+
+          <div class="timeline-step">
+            <div class="timeline-meta">
+              <span class="timeline-tag">Phase 05 &bull; Surveillance</span>
+              <span class="timeline-time">Ongoing</span>
+            </div>
+            <h3 class="timeline-step-title">Creator Wallet Activity Tracking</h3>
+            <p class="timeline-step-desc">RugScope monitors dev account transfers, mint/freeze executions, and secondary wallet dispersals.</p>
+          </div>
+
+          <div class="timeline-step">
+            <div class="timeline-meta">
+              <span class="timeline-tag">Phase 06 &bull; Threat Diagnostic</span>
+              <span class="timeline-time">Live Status</span>
+            </div>
+            <h3 class="timeline-step-title">Liquidity Depth & Drain Detection</h3>
+            <p class="timeline-step-desc">Real-time comparison of pool reserves against initial deposit. Instant alert triggered if sudden liquidity extraction occurs.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Interactive Wallet Relationship Graph -->
+      <section class="section-wrapper wallet-graph-section" id="wallet-graph">
+        <div class="section-header reveal-on-scroll">
+          <p class="section-eyebrow">Entity Mapping</p>
+          <h2 class="section-title">Interactive Wallet Relationship Graph</h2>
+          <p class="section-desc">Visualizing on-chain relationships between the token contract, deployer, liquidity pools, whales, and sniper clusters. Hover over nodes to inspect holdings.</p>
+        </div>
+
+        <div class="canvas-card reveal-on-scroll stagger-1">
+          <canvas id="walletGraphCanvas"></canvas>
+          <div id="graphTooltip" class="graph-tooltip"></div>
+        </div>
+      </section>
+
+      <!-- Risk History & Snapshot Trajectory Section -->
+      <section class="section-wrapper history-section" id="risk-history">
+        <div class="section-header reveal-on-scroll">
+          <p class="section-eyebrow">Temporal Audit</p>
+          <h2 class="section-title">Risk History & Snapshot Trajectory</h2>
+          <p class="section-desc">Audit previous scan snapshots and observe how pool reserves, authorities, and concentration fluctuate over time.</p>
+        </div>
+
+        <div class="history-grid reveal-on-scroll stagger-1" id="historyList">
+          <!-- Populated by dashboard.js -->
+        </div>
+      </section>
+
+      <!-- Signal Cards Grid -->
+      <section class="section-wrapper" id="signals">
+        <div class="section-header reveal-on-scroll">
+          <p class="section-eyebrow">Risk Architecture</p>
+          <h2 class="section-title">Multi-Layer Threat Detection</h2>
+          <p class="section-desc">Four specialized security layers working in synchronization to identify vulnerabilities before market damage occurs.</p>
+        </div>
+
+        <div class="signals-grid reveal-on-scroll stagger-1">
           <article class="signal-card">
-            <span class="signal-mark red"></span>
-            <h3>Liquidity warnings</h3>
-            <p>Rugscope highlights thin pools, new pools, and sharp liquidity drops that may make a token easier to manipulate.</p>
+            <div class="signal-icon-bar red"></div>
+            <h3>Liquidity Drain Warnings</h3>
+            <p>Monitors pool reserves for stealth removals, unlock timestamps, and sudden drop-offs that precede developer exit scams.</p>
           </article>
+
           <article class="signal-card">
-            <span class="signal-mark amber"></span>
-            <h3>Creator signals</h3>
-            <p>For Solana tokens, Rugscope checks authority, LP lock, holder concentration, and other creator-related warning signs.</p>
+            <div class="signal-icon-bar amber"></div>
+            <h3>Authority Forensics</h3>
+            <p>Scans contract bytecode and token parameters for active minting permissions, freeze authorities, and upgradeable proxies.</p>
           </article>
+
           <article class="signal-card">
-            <span class="signal-mark green"></span>
-            <h3>Page wallet markers</h3>
-            <p>Rugscope adds compact badges beside tracked, dev, buy, and sell wallet matches on the page you are already viewing.</p>
+            <div class="signal-icon-bar emerald"></div>
+            <h3>Holder Dispersal Analysis</h3>
+            <p>Detects hidden wallet clusters, insider accumulation, and top-heavy supply concentration (>70%) that create dump risks.</p>
           </article>
+
           <article class="signal-card">
-            <span class="signal-mark cyan"></span>
-            <h3>Wallet tracking</h3>
-            <p>Add wallets you care about and Rugscope marks their buys or sells, sends alerts, and keeps an alert history page in the extension.</p>
+            <div class="signal-icon-bar cyan"></div>
+            <h3>Autonomous Surveillance</h3>
+            <p>Continuously tracks flagged addresses across DEX transactions and alerts you instantly when suspicious transfers occur.</p>
           </article>
         </div>
       </section>
 
-      <section id="install" class="install">
-        <div class="section-head">
-          <p class="eyebrow">Install Rugscope</p>
-          <h2>Chrome asks you to approve it once</h2>
-          <p class="section-copy">For your safety, Chrome does not let websites install downloaded extensions by themselves. After downloading Rugscope, you approve it from Chrome's Extensions page and then it can scan token pages automatically.</p>
+      <!-- Chrome Extension Install Guide -->
+      <section class="section-wrapper" id="install">
+        <div class="section-header reveal-on-scroll">
+          <p class="section-eyebrow">Browser Integration</p>
+          <h2 class="section-title">Install the RugScope Browser Extension</h2>
+          <p class="section-desc">Inspect tokens directly inside DEX Screener, pump.fun, Axiom, Birdeye, GMGN, and GeckoTerminal without leaving your trading screen.</p>
         </div>
-        <ol class="steps">
-          <li>
-            <strong>Download Rugscope</strong>
-            <span>Download the ZIP file and unzip it somewhere easy to find.</span>
-          </li>
-          <li>
-            <strong>Open Chrome extensions</strong>
-            <span>Open <code>chrome://extensions</code> and turn on the Developer mode switch. Chrome uses this switch for manually added extensions.</span>
-          </li>
-          <li>
-            <strong>Select the Rugscope folder</strong>
-            <span>Click Load unpacked, choose the unzipped <code>rugscope-extension</code> folder, then open a token page.</span>
-          </li>
-        </ol>
-        <div class="install-actions">
-          <a class="button primary" href="downloads/rugscope-extension.zip" download>Download Rugscope</a>
-          <a class="button secondary" href="chrome://extensions">Open <code>chrome://extensions</code></a>
+
+        <div class="steps-grid reveal-on-scroll stagger-1">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h3>Download RugScope Package</h3>
+            <p>Download the prepared ZIP archive containing the lightweight extension files and unzip it to your preferred folder.</p>
+            <a class="btn btn-primary btn-sm" href="downloads/rugscope-extension.zip" download style="margin-top: 10px;">Download ZIP</a>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h3>Open Chrome Extensions</h3>
+            <p>Navigate to <code>chrome://extensions</code> in your Chromium browser and enable the <strong>Developer mode</strong> toggle in the upper right.</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h3>Load Unpacked Directory</h3>
+            <p>Click <strong>Load unpacked</strong>, choose the extracted <code>rugscope-extension</code> directory, and RugScope will automatically activate on trading tabs.</p>
+          </div>
         </div>
       </section>
     </main>
 
-    <footer class="footer">
-      <span>Rugscope is an informational risk scanner, not financial advice.</span>
-      <div class="footer-links">
-        <a href="docs.html">Docs</a>
-        <a href="downloads/rugscope-extension.zip" download>Download</a>
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-container">
+        <div class="footer-top-grid">
+          <!-- Brand & Tagline -->
+          <div class="footer-brand-col">
+            <a class="footer-brand-header" href="#top" aria-label="RugScope AI home">
+              <img class="footer-brand-logo" src="assets/rugscope-logo.png" alt="RugScope logo" width="30" height="30">
+              <span class="footer-brand-name">RugScope</span>
+            </a>
+            <p class="footer-brand-desc">
+              AI-powered on-chain security intelligence for Solana traders and builders.
+            </p>
+            <div class="footer-motto-pills">
+              <span class="footer-motto-pill">Detect</span>
+              <span class="footer-motto-pill">Investigate</span>
+              <span class="footer-motto-pill">Protect</span>
+            </div>
+          </div>
+
+          <!-- Product Column -->
+          <div>
+            <h4 class="footer-col-title">Product</h4>
+            <ul class="footer-col-list">
+              <li><a href="#scanner">Token Scanner</a></li>
+              <li><a href="#live-monitor">Live Monitor</a></li>
+              <li><a href="#scanResults">Risk Analysis</a></li>
+              <li><a href="downloads/rugscope-extension.zip" download>Browser Extension</a></li>
+            </ul>
+          </div>
+
+          <!-- Resources Column -->
+          <div>
+            <h4 class="footer-col-title">Resources</h4>
+            <ul class="footer-col-list">
+              <li><a href="docs.html">Documentation</a></li>
+              <li><a href="docs.html#api">API</a></li>
+              <li><a href="docs.html#security">Security</a></li>
+              <li><a href="docs.html#changelog">Changelog</a></li>
+            </ul>
+          </div>
+
+          <!-- Community Column -->
+          <div>
+            <h4 class="footer-col-title">Community</h4>
+            <ul class="footer-col-list">
+              <li><a href="https://x.com" target="_blank" rel="noopener noreferrer">X / Twitter</a></li>
+              <li><a href="https://t.me" target="_blank" rel="noopener noreferrer">Telegram</a></li>
+              <li><a href="https://discord.gg" target="_blank" rel="noopener noreferrer">Discord</a></li>
+              <li><a href="https://instagram.com" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+            </ul>
+          </div>
+
+          <!-- Follow Us Column -->
+          <div>
+            <h4 class="footer-col-title">Follow Us</h4>
+            <div class="footer-social-row">
+              <a class="social-btn" href="https://x.com" target="_blank" rel="noopener noreferrer" aria-label="RugScope on X">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+              </a>
+              <a class="social-btn" href="https://t.me" target="_blank" rel="noopener noreferrer" aria-label="RugScope on Telegram">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="m20.665 3.717-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l-.002.001-.314 4.692c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
+                </svg>
+              </a>
+              <a class="social-btn" href="https://discord.gg" target="_blank" rel="noopener noreferrer" aria-label="RugScope on Discord">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+              </a>
+              <a class="social-btn" href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="RugScope on Instagram">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="footer-bottom-bar">
+          <div>&copy; 2026 RugScope. All rights reserved.</div>
+          <div class="solana-ecosystem-tag">
+            <span class="solana-circle-dot"></span>
+            <span>Built for the Solana ecosystem.</span>
+          </div>
+        </div>
       </div>
     </footer>
+
+    <!-- Risk Scoring Methodology & Calculation Breakdown Modal -->
+    <div id="scoreModal" class="score-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="score-modal-card">
+        <div class="score-modal-header">
+          <div>
+            <h3 id="modalTitle" class="modal-title">RugScope 5-Pillar Risk Scoring Methodology</h3>
+            <p class="modal-subtitle">Transparent, math-backed security scoring with zero fake precision</p>
+          </div>
+          <button type="button" class="modal-close-btn" id="closeScoreModalBtn" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="score-modal-body">
+          <p class="modal-intro">
+            RugScope aggregates verified on-chain indicators into five structured pillars totaling 100 points. A higher score reflects greater structural capital risk. The model avoids arbitrary fake precision and transparently details point deductions.
+          </p>
+          <div class="pillar-guide-grid">
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">1. Authorities & Permissions</span>
+                <span class="guide-pillar-weight">Max 30 pts (30%)</span>
+              </div>
+              <p>Scans for active <code>mintTo</code> authority (+16), active <code>freezeAccount</code> authority (+14), mutable metadata, and non-standard Token-2022 transfer fee / permanent delegate extensions.</p>
+            </div>
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">2. Liquidity Depth & Lock Security</span>
+                <span class="guide-pillar-weight">Max 25 pts (25%)</span>
+              </div>
+              <p>Evaluates unlocked or burned LP status (0–20% locked = +12 to +16), micro-liquidity cushion (&lt; $1K = +16, &lt; $10K = +10), and severe FDV-to-liquidity exit imbalances.</p>
+            </div>
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">3. Holder Dispersal & Concentration</span>
+                <span class="guide-pillar-weight">Max 20 pts (20%)</span>
+              </div>
+              <p>Quantifies supply monopolization. Top 10 wallets holding &gt; 70% supply add +14 pts (&gt; 45% adds +8). Single whale accounts outside pool contracts add further dump exposure.</p>
+            </div>
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">4. Market Dynamics & Volume Pressure</span>
+                <span class="guide-pillar-weight">Max 15 pts (15%)</span>
+              </div>
+              <p>Monitors heavy sell-side transaction skews (sells &gt;= 2.5x buys adds +7), sudden 1-hour drawdowns (&gt; 35% adds +8), and rapid liquidity depletion velocity.</p>
+            </div>
+            <div class="pillar-guide-card">
+              <div class="guide-pillar-head">
+                <span class="guide-pillar-name">5. Maturity & Program Integrity</span>
+                <span class="guide-pillar-weight">Max 10 pts (10%)</span>
+              </div>
+              <p>Factors in pair creation timestamp (&lt; 1 hour adds +6), bonding curve migration status, and audited DEX router verification.</p>
+            </div>
+          </div>
+          <div class="modal-scale-row">
+            <div class="scale-tier low"><strong>0–24 Low</strong><span>Revoked keys, deep LP</span></div>
+            <div class="scale-tier moderate"><strong>25–49 Moderate</strong><span>Young pair or volatile meme</span></div>
+            <div class="scale-tier high"><strong>50–74 High</strong><span>Thin LP, high concentration</span></div>
+            <div class="scale-tier critical"><strong>75–100 Critical</strong><span>Active freeze/mint, unlocked LP</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="dashboard.js"></script>
   </body>
 </html>
