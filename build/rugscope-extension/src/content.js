@@ -35,6 +35,7 @@
   }
 
   let userDismissed = false;
+  let overlayVisible = false;
   let scanTimer = 0;
   let lastSignature = "";
   let observer = null;
@@ -42,13 +43,41 @@
   let overlayExpanded = true;
   let overlayBounds = null;
 
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === "rugscope:ping") {
+      sendResponse({ ok: true, host: location.host });
+      return;
+    }
+
+    if (message?.type === "rugscope:toggle-overlay") {
+      overlayVisible = !overlayVisible;
+      if (overlayVisible) {
+        userDismissed = false;
+        renderOverlay({ force: true, showOverlay: true });
+      } else {
+        removeOverlay();
+      }
+      sendResponse({ ok: true, visible: overlayVisible });
+      return;
+    }
+
+    if (message?.type === "rugscope:show-overlay") {
+      overlayVisible = true;
+      userDismissed = false;
+      renderOverlay({ force: true, showOverlay: true });
+      sendResponse({ ok: true, visible: true });
+      return;
+    }
+
     if (message?.type === "rugscope:request-scan") {
+      if (message.showOverlay) overlayVisible = true;
       scheduleScan(message.force ? "manual" : "background", Boolean(message.force));
     }
 
     if (message?.type === "rugscope:scan-result") {
-      renderOverlay(message.state);
+      if (overlayVisible) {
+        renderOverlay(message.state);
+      }
     }
   });
 
@@ -294,6 +323,8 @@
 
     history.pushState = function pushState(...args) {
       userDismissed = false;
+      overlayVisible = false;
+      removeOverlay();
       const result = originalPushState.apply(this, args);
       scheduleScan("pushState", true);
       return result;
@@ -301,6 +332,8 @@
 
     history.replaceState = function replaceState(...args) {
       userDismissed = false;
+      overlayVisible = false;
+      removeOverlay();
       const result = originalReplaceState.apply(this, args);
       scheduleScan("replaceState", true);
       return result;
@@ -308,10 +341,14 @@
 
     window.addEventListener("popstate", () => {
       userDismissed = false;
+      overlayVisible = false;
+      removeOverlay();
       scheduleScan("popstate", true);
     });
     window.addEventListener("hashchange", () => {
       userDismissed = false;
+      overlayVisible = false;
+      removeOverlay();
       scheduleScan("hashchange", true);
     });
   }
@@ -345,7 +382,12 @@
       return;
     }
 
-    // Only display automatic in-page overlay if a valid token with DEX pair or RugCheck report was verified,
+    // Do NOT inject in-page overlay unless explicitly activated by user (click-to-activate)
+    if (!overlayVisible && !state?.showOverlay) {
+      return;
+    }
+
+    // Only display in-page overlay if a valid token with DEX pair or RugCheck report was verified,
     // or if the user explicitly triggered a manual scan.
     const isVerifiedToken = Boolean(
       result.dex?.pair ||
@@ -354,12 +396,12 @@
     );
     const isManual = Boolean(state?.force || state?.reason === "manual");
 
-    if (!isVerifiedToken && !isManual) {
+    if (!isVerifiedToken && !isManual && !state?.showOverlay) {
       removeOverlay();
       return;
     }
 
-    if (userDismissed && !isManual) {
+    if (userDismissed && !isManual && !state?.showOverlay) {
       return;
     }
 
@@ -907,6 +949,7 @@
     });
 
     root.querySelector("[data-action='close']")?.addEventListener("click", () => {
+      overlayVisible = false;
       userDismissed = true;
       removeOverlay();
     });

@@ -10,6 +10,7 @@ const facts = document.getElementById("facts");
 const flags = document.getElementById("flags");
 const dexButton = document.getElementById("dexButton");
 const alertsButton = document.getElementById("alertsButton");
+const overlayButton = document.getElementById("overlayButton");
 const walletStatus = document.getElementById("walletStatus");
 const walletAddress = document.getElementById("walletAddress");
 const walletLabel = document.getElementById("walletLabel");
@@ -21,6 +22,7 @@ let currentResult = null;
 document.addEventListener("DOMContentLoaded", loadState);
 refreshButton.addEventListener("click", refreshScan);
 dexButton.addEventListener("click", () => openLink(currentResult?.links?.dex));
+if (overlayButton) overlayButton.addEventListener("click", toggleInPageOverlay);
 alertsButton.addEventListener("click", openAlerts);
 addWalletButton.addEventListener("click", addWallet);
 
@@ -212,6 +214,35 @@ function openLink(url) {
 
 async function openAlerts() {
   await sendMessage({ type: "rugscope:open-alerts-page" });
+}
+
+async function toggleInPageOverlay() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+
+  try {
+    const res = await chrome.tabs.sendMessage(tab.id, { type: "rugscope:toggle-overlay" });
+    if (res?.ok) {
+      window.close();
+      return;
+    }
+  } catch {
+    // Content script not present yet; inject on-demand via activeTab if permitted
+    try {
+      if (chrome.scripting?.executeScript) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ["src/content.js"]
+        });
+        setTimeout(async () => {
+          await chrome.tabs.sendMessage(tab.id, { type: "rugscope:show-overlay" }).catch(() => {});
+          window.close();
+        }, 150);
+      }
+    } catch {
+      // Ignored on restricted pages (e.g. chrome://)
+    }
+  }
 }
 
 function shortAddress(address) {

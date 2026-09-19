@@ -5,6 +5,9 @@ const WALLET_POLL_ALARM = "rugscope:wallet-poll";
 const WALLET_POLL_PERIOD_MINUTES = 1;
 const MAX_TRACKED_WALLETS = 40;
 const MAX_WALLET_MATCHES = 80;
+const MAX_STORED_WALLET_ALERTS = 300;
+const MAX_WALLET_WIDE_SIGNATURES = 24;
+const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
 
 const CHAIN_ALIASES = {
   sol: "solana",
@@ -155,6 +158,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({
         ok: false,
         error: error.message || "Could not refresh wallet tracker"
+      });
+    });
+    return true;
+  }
+
+  if (message.type === "rugscope:get-wallet-alerts") {
+    getWalletAlerts().then((alerts) => sendResponse({ ok: true, alerts })).catch((error) => {
+      sendResponse({
+        ok: false,
+        error: error.message || "Could not load alerts"
+      });
+    });
+    return true;
+  }
+
+  if (message.type === "rugscope:clear-wallet-alerts") {
+    clearWalletAlerts().then(() => sendResponse({ ok: true, alerts: [] })).catch((error) => {
+      sendResponse({
+        ok: false,
+        error: error.message || "Could not clear alerts"
+      });
+    });
+    return true;
+  }
+
+  if (message.type === "rugscope:open-alerts-page") {
+    chrome.tabs.create({ url: chrome.runtime.getURL("alerts/alerts.html") }).then(() => {
+      sendResponse({ ok: true });
+    }).catch((error) => {
+      sendResponse({
+        ok: false,
+        error: error.message || "Could not open alerts"
       });
     });
     return true;
@@ -695,16 +730,16 @@ async function enrichResultWithMarketData(result, options = {}) {
   if (!result?.dex?.pair?.pairAddress) {
     return {
       ...result,
-      chart: result?.chart || null,
+      chart: null,
       walletMatches: result?.walletMatches || []
     };
   }
 
   const trackedWallets = await getTrackedWallets();
-  const market = await fetchGeckoMarketData(result, trackedWallets);
+  const market = await fetchWalletTradeData(result, trackedWallets);
   const enriched = {
     ...result,
-    chart: market.chart,
+    chart: null,
     walletMatches: market.walletMatches,
     walletTracker: {
       trackedCount: trackedWallets.filter((wallet) => wallet.enabled !== false).length,
@@ -720,32 +755,29 @@ async function enrichResultWithMarketData(result, options = {}) {
   return enriched;
 }
 
-async function fetchGeckoMarketData(result, trackedWallets) {
+async function fetchWalletTradeData(result, trackedWallets) {
   const pair = result?.dex?.pair;
   const network = geckoNetworkForChain(pair?.chainId || result.chainId);
   const errors = [];
+  const chainType = result.chainType === "solana" ? "solana" : "evm";
+  const watched = buildWatchedWallets(result, trackedWallets).filter((wallet) => wallet.chainType === chainType);
 
-  if (!network || !pair?.pairAddress) {
+  if (!watched.length) {
     return {
-      chart: {
-        ok: false,
-        source: "GeckoTerminal",
-        errors: ["Chart data is unavailable for this chain or pair."]
-      },
       walletMatches: [],
       errors
     };
   }
 
-  const poolAddress = pair.pairAddress;
-  let ohlcv = null;
-  let trades = null;
-
-  try {
-    ohlcv = await fetchJson(`https://api.geckoterminal.com/api/v2/networks/${encodeURIComponent(network)}/pools/${encodeURIComponent(poolAddress)}/ohlcv/minute?aggregate=5&limit=96&currency=usd&token=base&include_empty_intervals=true`);
-  } catch (error) {
-    errors.push(`Chart candles unavailable: ${error.message}`);
+  if (!network || !pair?.pairAddress) {
+    return {
+      walletMatches: [],
+      errors: ["Wallet trade data is unavailable for this chain or pair."]
+    };
   }
+
+  const poolAddress = pair.pairAddress;
+  let trades = null;
 
   try {
     trades = await fetchJson(`https://api.geckoterminal.com/api/v2/networks/${encodeURIComponent(network)}/pools/${encodeURIComponent(poolAddress)}/trades`);
@@ -753,66 +785,26 @@ async function fetchGeckoMarketData(result, trackedWallets) {
     errors.push(`Trade feed unavailable: ${error.message}`);
   }
 
-  const candles = parseOhlcvCandles(ohlcv);
   const walletMatches = parseWalletTradeMatches({
     trades,
-    candles,
     result,
     trackedWallets
   });
 
   return {
-    chart: {
-      ok: candles.length > 0,
-      source: "GeckoTerminal",
-      network,
-      poolAddress,
-      timeframe: "5m",
-      candles,
-      markers: walletMatches.map((match) => ({
-        id: match.id,
-        walletId: match.walletId,
-        walletLabel: match.walletLabel,
-        isDev: match.isDev,
-        kind: match.kind,
-        timestamp: match.timestamp,
-        candleTime: match.candleTime,
-        priceUsd: match.priceUsd,
-        volumeUsd: match.volumeUsd,
-        amount: match.amount,
-        tokenSymbol: match.tokenSymbol,
-        txHash: match.txHash
-      })),
-      base: ohlcv?.meta?.base || null,
-      quote: ohlcv?.meta?.quote || null,
-      errors,
-      updatedAt: Date.now()
-    },
     walletMatches,
     errors
   };
 }
 
-function parseOhlcvCandles(ohlcv) {
-  const list = ohlcv?.data?.attributes?.ohlcv_list;
-  if (!Array.isArray(list)) {
-    return [];
-  }
-
-  return list
-    .map((item) => ({
-      time: numberOrNull(item?.[0]),
-      open: numberOrNull(item?.[1]),
-      high: numberOrNull(item?.[2]),
-      low: numberOrNull(item?.[3]),
-      close: numberOrNull(item?.[4]),
-      volume: numberOrNull(item?.[5])
-    }))
-    .filter((candle) => candle.time && candle.open != null && candle.high != null && candle.low != null && candle.close != null)
-    .sort((a, b) => a.time - b.time);
+function tradePriceUsd(attrs = {}) {
+  const kind = normalizeTradeKind(attrs.kind);
+  return numberOrNull(kind === "sell" ? attrs.price_from_in_usd : attrs.price_to_in_usd)
+    ?? numberOrNull(attrs.price_to_in_usd)
+    ?? numberOrNull(attrs.price_from_in_usd);
 }
 
-function parseWalletTradeMatches({ trades, candles, result, trackedWallets }) {
+function parseWalletTradeMatches({ trades, result, trackedWallets }) {
   const tradeRows = Array.isArray(trades?.data) ? trades.data : [];
   const chainType = result.chainType === "solana" ? "solana" : "evm";
   const watched = buildWatchedWallets(result, trackedWallets).filter((wallet) => wallet.chainType === chainType);
@@ -839,9 +831,8 @@ function parseWalletTradeMatches({ trades, candles, result, trackedWallets }) {
 
     const kind = normalizeTradeKind(attrs.kind);
     const tokenAmount = kind === "sell" ? attrs.from_token_amount : attrs.to_token_amount;
-    const priceUsd = numberOrNull(kind === "sell" ? attrs.price_from_in_usd : attrs.price_to_in_usd);
+    const priceUsd = tradePriceUsd(attrs);
     const volumeUsd = numberOrNull(attrs.volume_in_usd);
-    const candle = findTradeCandle(candles, timestamp);
     const txHash = attrs.tx_hash || "";
 
     matches.push({
@@ -853,7 +844,6 @@ function parseWalletTradeMatches({ trades, candles, result, trackedWallets }) {
       isDev: Boolean(wallet.isDev),
       kind,
       timestamp,
-      candleTime: candle?.time || timestamp,
       priceUsd,
       volumeUsd,
       amount: cleanAmount(tokenAmount),
@@ -905,28 +895,14 @@ function buildWatchedWallets(result, trackedWallets) {
   return watched;
 }
 
-function findTradeCandle(candles, timestamp) {
-  if (!candles.length) {
-    return null;
-  }
-
-  let selected = candles[0];
-  for (const candle of candles) {
-    if (candle.time <= timestamp) {
-      selected = candle;
-    } else {
-      break;
-    }
-  }
-  return selected;
-}
-
 async function pollTrackedWallets(options = {}) {
   ensureWalletPollAlarm();
   const wallets = await getTrackedWallets();
   if (!wallets.some((wallet) => wallet.enabled !== false)) {
     return { updated: 0 };
   }
+
+  const walletWideAlerts = await pollWalletWideBuys(wallets, options);
 
   const { rugscopeTabStates = {} } = await chrome.storage.local.get("rugscopeTabStates");
   const entries = Object.entries(rugscopeTabStates)
@@ -950,7 +926,10 @@ async function pollTrackedWallets(options = {}) {
   }
 
   await chrome.storage.local.set({ rugscopeTabStates });
-  return { updated };
+  return {
+    updated,
+    walletWideAlerts
+  };
 }
 
 function ensureWalletPollAlarm() {
@@ -984,6 +963,8 @@ async function addTrackedWallet(input = {}) {
     createdAt: wallets[existingIndex]?.createdAt || Date.now()
   };
 
+  const isNewWallet = existingIndex < 0;
+
   if (existingIndex >= 0) {
     wallets[existingIndex] = {
       ...wallets[existingIndex],
@@ -995,6 +976,9 @@ async function addTrackedWallet(input = {}) {
 
   const trimmed = wallets.slice(0, MAX_TRACKED_WALLETS);
   await chrome.storage.local.set({ rugscopeTrackedWallets: trimmed });
+  if (isNewWallet) {
+    await seedWalletWideSeen(nextWallet);
+  }
   ensureWalletPollAlarm();
   return trimmed;
 }
@@ -1008,6 +992,252 @@ async function removeTrackedWallet(idOrAddress = "") {
   return filtered;
 }
 
+async function pollWalletWideBuys(wallets, options = {}) {
+  const solanaWallets = wallets.filter((wallet) => wallet.enabled !== false && wallet.chainType === "solana");
+  if (!solanaWallets.length) {
+    return 0;
+  }
+
+  const { rugscopeSeenWalletWideTxs = {} } = await chrome.storage.local.get("rugscopeSeenWalletWideTxs");
+  const allAlerts = [];
+
+  for (const wallet of solanaWallets) {
+    const alerts = await fetchSolanaWalletBuyAlerts(wallet, rugscopeSeenWalletWideTxs).catch(() => []);
+    allAlerts.push(...alerts);
+  }
+
+  if (!allAlerts.length) {
+    trimRecord(rugscopeSeenWalletWideTxs, 1000);
+    await chrome.storage.local.set({ rugscopeSeenWalletWideTxs });
+    return 0;
+  }
+
+  await storeWalletAlerts(allAlerts, {
+    title: "Wallet-wide tracker",
+    host: "solana"
+  });
+
+  if (options.notify) {
+    notifyStoredWalletAlerts(allAlerts);
+  }
+
+  trimRecord(rugscopeSeenWalletWideTxs, 1000);
+  await chrome.storage.local.set({ rugscopeSeenWalletWideTxs });
+  return allAlerts.length;
+}
+
+async function fetchSolanaWalletBuyAlerts(wallet, seenRecord) {
+  const signatures = await fetchSolanaSignatures(wallet.address);
+  const unseen = signatures
+    .filter((item) => item?.signature && !seenRecord[walletWideSeenKey(wallet.id, item.signature)])
+    .sort((a, b) => (a.blockTime || 0) - (b.blockTime || 0));
+  const alerts = [];
+
+  for (const item of unseen) {
+    const key = walletWideSeenKey(wallet.id, item.signature);
+    seenRecord[key] = { updatedAt: Date.now() };
+
+    const txTime = (item.blockTime || 0) * 1000;
+    if (wallet.createdAt && txTime && txTime < wallet.createdAt - 60000) {
+      continue;
+    }
+
+    const tx = await fetchSolanaTransaction(item.signature).catch(() => null);
+    const buys = parseSolanaWalletBuysFromTransaction(tx, wallet);
+    for (const buy of buys) {
+      const meta = await fetchSolanaTokenMeta(buy.mint).catch(() => null);
+      const tokenSymbol = meta?.symbol || buy.mint.slice(0, 6);
+      const priceUsd = numberOrNull(meta?.priceUsd);
+      const volumeUsd = priceUsd == null ? null : priceUsd * buy.amount;
+
+      alerts.push({
+        id: `${wallet.id}:${item.signature}:${buy.mint}`,
+        walletId: wallet.id,
+        walletLabel: wallet.label || defaultWalletLabel(wallet.address),
+        walletAddress: wallet.address,
+        isDev: /dev|creator/i.test(wallet.label || ""),
+        kind: "buy",
+        tokenSymbol,
+        tokenAddress: buy.mint,
+        amount: cleanAmount(buy.amount),
+        volumeUsd,
+        priceUsd,
+        txHash: item.signature,
+        txUrl: buildTxUrl("solana", item.signature),
+        timestamp: item.blockTime || Math.floor(Date.now() / 1000),
+        tokenTitle: meta?.name || tokenSymbol,
+        pageHost: "wallet-wide Solana tracker",
+        createdAt: Date.now()
+      });
+    }
+  }
+
+  return alerts;
+}
+
+function parseSolanaWalletBuysFromTransaction(tx, wallet) {
+  const meta = tx?.meta;
+  const message = tx?.transaction?.message;
+  if (!meta || !message) {
+    return [];
+  }
+
+  const tokenDiffs = solanaTokenDiffsForWallet(meta, wallet.address);
+  const walletIndex = solanaWalletAccountIndex(message, wallet.address);
+  const lamportDiff = walletIndex == null
+    ? 0
+    : (Number(meta.postBalances?.[walletIndex]) || 0) - (Number(meta.preBalances?.[walletIndex]) || 0);
+  const spentToken = tokenDiffs.some((diff) => diff.delta < -tokenDust(diff.decimals));
+  const spentSol = lamportDiff < -1000000;
+  const likelySwap = spentToken || spentSol;
+
+  if (!likelySwap) {
+    return [];
+  }
+
+  return tokenDiffs
+    .filter((diff) => diff.delta > tokenDust(diff.decimals))
+    .map((diff) => ({
+      mint: diff.mint,
+      amount: diff.delta,
+      decimals: diff.decimals
+    }));
+}
+
+function solanaTokenDiffsForWallet(meta, walletAddress) {
+  const balances = new Map();
+  const addBalance = (entry, side) => {
+    if (!entry?.mint || entry.owner !== walletAddress) {
+      return;
+    }
+
+    const existing = balances.get(entry.mint) || {
+      mint: entry.mint,
+      decimals: entry.uiTokenAmount?.decimals || 0,
+      pre: 0,
+      post: 0
+    };
+    existing[side] += tokenUiAmount(entry.uiTokenAmount);
+    existing.decimals = entry.uiTokenAmount?.decimals ?? existing.decimals;
+    balances.set(entry.mint, existing);
+  };
+
+  for (const entry of meta.preTokenBalances || []) addBalance(entry, "pre");
+  for (const entry of meta.postTokenBalances || []) addBalance(entry, "post");
+
+  return Array.from(balances.values()).map((entry) => ({
+    mint: entry.mint,
+    decimals: entry.decimals,
+    delta: entry.post - entry.pre
+  }));
+}
+
+function solanaWalletAccountIndex(message, walletAddress) {
+  const keys = message.accountKeys || [];
+  const index = keys.findIndex((key) => {
+    const pubkey = typeof key === "string" ? key : key?.pubkey;
+    return pubkey === walletAddress;
+  });
+  return index >= 0 ? index : null;
+}
+
+function tokenUiAmount(uiTokenAmount = {}) {
+  const value = Number(uiTokenAmount.uiAmountString ?? uiTokenAmount.uiAmount ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function tokenDust(decimals = 0) {
+  return decimals > 0 ? 1 / Math.pow(10, Math.min(decimals, 9)) : 0;
+}
+
+async function fetchSolanaSignatures(address) {
+  return fetchSolanaRpc("getSignaturesForAddress", [
+    address,
+    {
+      limit: MAX_WALLET_WIDE_SIGNATURES
+    }
+  ]);
+}
+
+async function fetchSolanaTransaction(signature) {
+  return fetchSolanaRpc("getTransaction", [
+    signature,
+    {
+      encoding: "jsonParsed",
+      maxSupportedTransactionVersion: 0
+    }
+  ]);
+}
+
+async function fetchSolanaRpc(method, params) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(SOLANA_RPC_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: `rugscope-${Date.now()}`,
+        method,
+        params
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`.trim());
+    }
+
+    const payload = await response.json();
+    if (payload.error) {
+      throw new Error(payload.error.message || "Solana RPC error");
+    }
+    return payload.result;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchSolanaTokenMeta(mint) {
+  const pairs = await fetchJson(`https://api.dexscreener.com/tokens/v1/solana/${encodeURIComponent(mint)}`);
+  const pair = chooseBestPair(Array.isArray(pairs) ? pairs : [], mint, "solana", "solana");
+  const base = pair?.baseToken?.address === mint ? pair.baseToken : pair?.quoteToken?.address === mint ? pair.quoteToken : pair?.baseToken;
+  return {
+    name: cleanText(base?.name || ""),
+    symbol: cleanText(base?.symbol || ""),
+    priceUsd: pair?.priceUsd || "",
+    url: pair?.url || ""
+  };
+}
+
+function walletWideSeenKey(walletId, signature) {
+  return `wide:${walletId}:${signature}`;
+}
+
+async function seedWalletWideSeen(wallet) {
+  if (wallet.chainType !== "solana") {
+    return;
+  }
+
+  const signatures = await fetchSolanaSignatures(wallet.address).catch(() => []);
+  if (!signatures.length) {
+    return;
+  }
+
+  const { rugscopeSeenWalletWideTxs = {} } = await chrome.storage.local.get("rugscopeSeenWalletWideTxs");
+  for (const item of signatures) {
+    if (item?.signature) {
+      rugscopeSeenWalletWideTxs[walletWideSeenKey(wallet.id, item.signature)] = { updatedAt: Date.now() };
+    }
+  }
+  trimRecord(rugscopeSeenWalletWideTxs, 1000);
+  await chrome.storage.local.set({ rugscopeSeenWalletWideTxs });
+}
+
 async function alertNewWalletMatches(matches, page = {}) {
   if (!Array.isArray(matches) || !matches.length) {
     return;
@@ -1016,7 +1246,7 @@ async function alertNewWalletMatches(matches, page = {}) {
   const { rugscopeSeenWalletTxs = {} } = await chrome.storage.local.get("rugscopeSeenWalletTxs");
   const now = Date.now();
   const freshMatches = matches.filter((match) => {
-    if (!match.txHash || rugscopeSeenWalletTxs[match.id]) {
+    if (!match?.id || rugscopeSeenWalletTxs[match.id]) {
       return false;
     }
 
@@ -1026,21 +1256,102 @@ async function alertNewWalletMatches(matches, page = {}) {
     return wasTrackedBeforeTrade && isRecent;
   });
 
+  if (freshMatches.length) {
+    await storeWalletAlerts(freshMatches, page);
+  }
+
+  for (const match of freshMatches) {
+    rugscopeSeenWalletTxs[match.id] = { updatedAt: now };
+  }
+
   for (const match of freshMatches.slice(0, 5)) {
-    rugscopeSeenWalletTxs[match.id] = now;
     const action = match.kind === "sell" ? "sold" : "bought";
     const amount = [match.amount, match.tokenSymbol].filter(Boolean).join(" ");
     const usd = match.volumeUsd == null ? "" : ` (${formatCompactUsd(match.volumeUsd)})`;
-    chrome.notifications.create(`rugscope:${match.id}`, {
-      type: "basic",
-      iconUrl: "assets/icon128.png",
+    createWalletNotification(`rugscope:${match.id}`, {
       title: `${match.walletLabel} ${action} ${page?.title || "a tracked token"}`,
       message: `${amount || "Trade"}${usd} on ${page?.host || "the current pool"}.`
-    }).catch(() => {});
+    });
   }
 
   trimRecord(rugscopeSeenWalletTxs, 500);
   await chrome.storage.local.set({ rugscopeSeenWalletTxs });
+}
+
+async function storeWalletAlerts(matches, page = {}) {
+  const { rugscopeWalletAlerts = [] } = await chrome.storage.local.get("rugscopeWalletAlerts");
+  const existing = Array.isArray(rugscopeWalletAlerts) ? rugscopeWalletAlerts : [];
+  const existingIds = new Set(existing.map((alert) => alert.id));
+  const nextAlerts = matches
+    .filter((match) => {
+      if (!match?.id || existingIds.has(match.id)) {
+        return false;
+      }
+      existingIds.add(match.id);
+      return true;
+    })
+    .map((match) => ({
+      id: match.id,
+      walletId: match.walletId,
+      walletLabel: match.walletLabel || "Tracked wallet",
+      walletAddress: match.walletAddress || "",
+      isDev: Boolean(match.isDev),
+      kind: match.kind || "buy",
+      tokenSymbol: match.tokenSymbol || "",
+      amount: match.amount || "",
+      volumeUsd: match.volumeUsd ?? null,
+      priceUsd: match.priceUsd ?? null,
+      txHash: match.txHash || "",
+      txUrl: match.txUrl || "",
+      timestamp: match.timestamp || Math.floor(Date.now() / 1000),
+      tokenTitle: match.tokenTitle || page?.title || "",
+      pageHost: match.pageHost || page?.host || "",
+      createdAt: Date.now()
+    }));
+
+  if (!nextAlerts.length) {
+    return existing;
+  }
+
+  const alerts = nextAlerts.concat(existing)
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+    .slice(0, MAX_STORED_WALLET_ALERTS);
+  await chrome.storage.local.set({ rugscopeWalletAlerts: alerts });
+  return alerts;
+}
+
+function notifyStoredWalletAlerts(alerts) {
+  for (const alert of alerts.slice(0, 5)) {
+    const action = alert.kind === "sell" ? "sold" : "bought";
+    const amount = [alert.amount, alert.tokenSymbol].filter(Boolean).join(" ");
+    const usd = alert.volumeUsd == null ? "" : ` (${formatCompactUsd(alert.volumeUsd)})`;
+    createWalletNotification(`rugscope:${alert.id}`, {
+      title: `${alert.walletLabel} ${action} ${alert.tokenTitle || alert.tokenSymbol || "a token"}`,
+      message: `${amount || "Trade"}${usd} from wallet-wide tracking.`
+    });
+  }
+}
+
+function createWalletNotification(id, options) {
+  if (!chrome.notifications?.create) {
+    return;
+  }
+
+  chrome.notifications.create(id, {
+    type: "basic",
+    iconUrl: chrome.runtime.getURL("assets/icon128.png"),
+    title: options.title || "Rugscope wallet alert",
+    message: options.message || "A tracked wallet matched recent activity."
+  }).catch(() => {});
+}
+
+async function getWalletAlerts() {
+  const { rugscopeWalletAlerts = [] } = await chrome.storage.local.get("rugscopeWalletAlerts");
+  return Array.isArray(rugscopeWalletAlerts) ? rugscopeWalletAlerts : [];
+}
+
+async function clearWalletAlerts() {
+  await chrome.storage.local.set({ rugscopeWalletAlerts: [] });
 }
 
 function normalizeWalletAddress(address) {

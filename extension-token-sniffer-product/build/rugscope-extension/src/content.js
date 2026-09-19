@@ -1,8 +1,11 @@
 (() => {
   const EVM_RE = /\b0x[a-fA-F0-9]{40}\b/g;
   const SOL_RE = /(^|[^A-Za-z0-9])([1-9A-HJ-NP-Za-km-z]{32,44})(?=$|[^A-Za-z0-9])/g;
-  const MAX_TEXT_CHARS = 45000;
-  const MAX_LINKS = 90;
+  const MAX_TEXT_CHARS = 80000;
+  const MAX_LINKS = 140;
+  const MAX_ATTRIBUTE_CHARS = 80000;
+  const MAX_SCRIPT_CHARS = 60000;
+  const PAGE_MARKER_LIMIT = 80;
   const SCAN_DELAY_MS = 450;
   const KNOWN_TOKEN_HOSTS = [
     "pump.fun",
@@ -17,27 +20,76 @@
     "dexview.com",
     "dextools.io",
     "ape.pro",
-    "jup.ag"
+    "jup.ag",
+    "raydium.io",
+    "solscan.io",
+    "solana.fm"
   ];
 
+  function isSupportedTokenHost(host) {
+    if (!host) return false;
+    const clean = String(host).toLowerCase().split(":")[0];
+    return KNOWN_TOKEN_HOSTS.some((item) => clean === item || clean.endsWith("." + item));
+  }
+
+  // If not running on a supported crypto token host, do nothing.
+  if (typeof window === "undefined" || !document || !location || location.protocol === "chrome:" || !isSupportedTokenHost(location.host)) {
+    return;
+  }
+
+  let userDismissed = false;
+  let overlayVisible = false;
   let scanTimer = 0;
   let lastSignature = "";
   let observer = null;
   let overlayHost = null;
   let overlayExpanded = true;
   let overlayBounds = null;
+  let markerTimer = 0;
+  let currentScanResult = null;
 
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === "rugscope:ping") {
+      sendResponse({ ok: true, host: location.host, hasResult: Boolean(currentScanResult) });
+      return;
+    }
+
+    if (message?.type === "rugscope:toggle-overlay") {
+      overlayVisible = !overlayVisible;
+      if (overlayVisible) {
+        userDismissed = false;
+        renderOverlay({ result: currentScanResult, force: true, showOverlay: true });
+      } else {
+        removeOverlay();
+      }
+      sendResponse({ ok: true, visible: overlayVisible });
+      return;
+    }
+
+    if (message?.type === "rugscope:show-overlay") {
+      overlayVisible = true;
+      userDismissed = false;
+      renderOverlay({ result: currentScanResult, force: true, showOverlay: true });
+      sendResponse({ ok: true, visible: true });
+      return;
+    }
+
     if (message?.type === "rugscope:request-scan") {
+      if (message.showOverlay) overlayVisible = true;
       scheduleScan(message.force ? "manual" : "background", Boolean(message.force));
     }
 
     if (message?.type === "rugscope:scan-result") {
-      renderOverlay(message.state);
+      if (overlayVisible) {
+        renderOverlay(message.state);
+      } else {
+        currentScanResult = message.state?.result || null;
+      }
     }
   });
 
   installNavigationHooks();
+  installLifecycleScanHooks();
   scheduleScan("load", true);
   startObserver();
 
@@ -57,6 +109,10 @@
       host: location.host
     };
     const candidates = collectCandidates(page);
+    if (!candidates.length && !force && reason !== "empty-retry") {
+      window.setTimeout(() => scheduleScan("empty-retry", true), document.readyState === "complete" ? 1200 : 650);
+    }
+
     const signature = JSON.stringify({
       url: page.url,
       candidates: candidates.map((candidate) => `${candidate.chainType}:${candidate.address}:${candidate.score}`).slice(0, 8)
@@ -78,16 +134,18 @@
 
   function collectCandidates(page) {
     const candidateMap = new Map();
-    const urlText = decodeSafe(location.href);
+    const urlText = getLocationText();
     const titleText = document.title || "";
     const metaText = getMetaText();
     const linkText = getLinkText();
+    const attributeText = getAttributeText();
+    const appDataText = getAppDataText();
     const bodyText = getBodyText();
     const hostBoost = KNOWN_TOKEN_HOSTS.some((host) => location.host.includes(host)) ? 12 : 0;
 
     addCandidates(candidateMap, urlText, {
-      source: "url",
-      baseScore: 54 + hostBoost,
+      source: "URL",
+      baseScore: 58 + hostBoost,
       page
     });
     addCandidates(candidateMap, titleText, {
@@ -103,6 +161,16 @@
     addCandidates(candidateMap, linkText, {
       source: "links",
       baseScore: 24 + hostBoost,
+      page
+    });
+    addCandidates(candidateMap, attributeText, {
+      source: "page attributes",
+      baseScore: 30 + hostBoost,
+      page
+    });
+    addCandidates(candidateMap, appDataText, {
+      source: "app data",
+      baseScore: 22 + hostBoost,
       page
     });
     addCandidates(candidateMap, bodyText, {
@@ -176,23 +244,36 @@
 
   function scoreCandidate(text, address, baseScore) {
     const lower = text.toLowerCase();
+    const addressLower = address.toLowerCase();
     let score = baseScore;
-    const addressIndex = lower.indexOf(address.toLowerCase());
+    const addressIndex = lower.indexOf(addressLower);
     const context = addressIndex >= 0 ? lower.slice(Math.max(0, addressIndex - 80), addressIndex + address.length + 80) : lower.slice(0, 180);
+    const decodedLocation = getLocationText().toLowerCase();
 
-    if (/token|contract|mint|ca[:\s]|pair|coin|pool|address|rug|dex|chart/.test(context)) {
+    if (/token|contract|mint|ca[:\s=]|pair|coin|pool|address|rug|dex|chart|base|solana|pump|moonshot/.test(context)) {
       score += 14;
     }
     if (/pump\.fun|axiom|dexscreener|birdeye|gmgn|geckoterminal|bullx|dextools/.test(lower)) {
       score += 10;
     }
-    if (location.pathname.includes(address)) {
-      score += 16;
+    if (decodedLocation.includes(addressLower)) {
+      score += 20;
     }
-    if (location.search.includes(address)) {
-      score += 12;
+    if (context.includes("pairaddress") || context.includes("tokenaddress") || context.includes("mintaddress")) {
+      score += 10;
     }
     return Math.min(100, score);
+  }
+
+  function getLocationText() {
+    return [
+      location.href,
+      location.pathname,
+      location.search,
+      location.hash,
+      ...location.pathname.split("/"),
+      ...location.search.replace(/^[?]/, "").split(/[=&]/)
+    ].map(decodeSafe).join(" ");
   }
 
   function getMetaText() {
@@ -222,14 +303,68 @@
       .join(" ");
   }
 
+  function getAttributeText() {
+    const parts = [];
+    const nodes = Array.from(document.querySelectorAll("[href], [src], [title], [aria-label], [data-address], [data-token-address], [data-contract], [data-mint], [data-ca], [data-pair], [data-token], [data-chain]"))
+      .slice(0, 1200);
+
+    for (const node of nodes) {
+      if (isIgnoredScanNode(node)) {
+        continue;
+      }
+      for (const attr of Array.from(node.attributes || [])) {
+        if (!/^(href|src|title|aria-label|data-|content$)/i.test(attr.name)) {
+          continue;
+        }
+        if (attr.value) {
+          parts.push(attr.value);
+        }
+      }
+      if (parts.join(" ").length >= MAX_ATTRIBUTE_CHARS) {
+        break;
+      }
+    }
+
+    return parts.join(" ").slice(0, MAX_ATTRIBUTE_CHARS);
+  }
+
+  function getAppDataText() {
+    const parts = [];
+    const selectors = [
+      "script[type='application/json']",
+      "script#__NEXT_DATA__",
+      "script#__NUXT_DATA__",
+      "script[id*='__NEXT']",
+      "script[id*='data']"
+    ];
+
+    for (const selector of selectors) {
+      for (const node of Array.from(document.querySelectorAll(selector)).slice(0, 12)) {
+        const text = node.textContent || "";
+        if (text) {
+          parts.push(text.slice(0, 12000));
+        }
+        if (parts.join(" ").length >= MAX_SCRIPT_CHARS) {
+          return parts.join(" ").slice(0, MAX_SCRIPT_CHARS);
+        }
+      }
+    }
+
+    return parts.join(" ").slice(0, MAX_SCRIPT_CHARS);
+  }
+
   function getBodyText() {
     const body = document.body;
     if (!body) {
       return "";
     }
 
-    const text = body.innerText || body.textContent || "";
+    const text = body.innerText || body.textContent || document.documentElement?.textContent || "";
     return text.slice(0, MAX_TEXT_CHARS);
+  }
+
+  function isIgnoredScanNode(node) {
+    return Boolean(node?.closest?.("rugscope-scan, script, style, noscript, textarea, input"));
   }
 
   function isNoiseAddress(address, chainType) {
@@ -278,19 +413,47 @@
     const originalReplaceState = history.replaceState;
 
     history.pushState = function pushState(...args) {
+      userDismissed = false;
+      overlayVisible = false;
+      removeOverlay();
       const result = originalPushState.apply(this, args);
       scheduleScan("pushState", true);
       return result;
     };
 
     history.replaceState = function replaceState(...args) {
+      userDismissed = false;
+      overlayVisible = false;
+      removeOverlay();
       const result = originalReplaceState.apply(this, args);
       scheduleScan("replaceState", true);
       return result;
     };
 
-    window.addEventListener("popstate", () => scheduleScan("popstate", true));
-    window.addEventListener("hashchange", () => scheduleScan("hashchange", true));
+    window.addEventListener("popstate", () => {
+      userDismissed = false;
+      overlayVisible = false;
+      removeOverlay();
+      scheduleScan("popstate", true);
+    });
+    window.addEventListener("hashchange", () => {
+      userDismissed = false;
+      overlayVisible = false;
+      removeOverlay();
+      scheduleScan("hashchange", true);
+    });
+  }
+
+  function installLifecycleScanHooks() {
+    document.addEventListener("DOMContentLoaded", () => scheduleScan("dom-ready", true), { once: true });
+    window.addEventListener("load", () => scheduleScan("window-load", true), { once: true });
+    window.addEventListener("pageshow", () => scheduleScan("pageshow", true));
+    window.addEventListener("focus", () => scheduleScan("focus"));
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        scheduleScan("visible", true);
+      }
+    });
   }
 
   function startObserver() {
@@ -300,36 +463,87 @@
 
     observer = new MutationObserver((mutations) => {
       const meaningful = mutations.some((mutation) => {
+        if (isRugscopeMutation(mutation)) return false;
+        if (mutation.type === "attributes" || mutation.type === "characterData") return true;
         if (mutation.type !== "childList") return false;
         return mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0;
       });
 
       if (meaningful) {
         scheduleScan("mutation");
+        schedulePageMarkers();
       }
     });
 
     observer.observe(document.body, {
       childList: true,
-      subtree: true
+      subtree: true,
+      attributes: true,
+      characterData: true,
+      attributeFilter: ["href", "title", "aria-label", "data-address", "data-token-address", "data-contract", "data-mint", "data-ca", "data-pair", "data-token"]
     });
+  }
+
+  function isRugscopeMutation(mutation) {
+    if (mutation.target?.closest?.("rugscope-scan, [data-rugscope-page-wallet-marker]")) {
+      return true;
+    }
+
+    const nodes = [...Array.from(mutation.addedNodes || []), ...Array.from(mutation.removedNodes || [])];
+    return nodes.length > 0 && nodes.every(isRugscopeNode);
+  }
+
+  function isRugscopeNode(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return false;
+    }
+
+    return Boolean(
+      node.matches?.("rugscope-scan, [data-rugscope-page-wallet-marker], #rugscope-page-marker-style") ||
+      node.querySelector?.("rugscope-scan, [data-rugscope-page-wallet-marker], #rugscope-page-marker-style")
+    );
   }
 
   function renderOverlay(state) {
     const result = state?.result;
     if (!result?.address) {
+      currentScanResult = null;
+      removeOverlay();
+      clearPageWalletMarkers();
+      return;
+    }
+
+    currentScanResult = result;
+
+    // Do NOT inject in-page overlay unless explicitly activated by user (click-to-activate)
+    if (!overlayVisible && !state?.showOverlay) {
+      return;
+    }
+
+    // Only display in-page overlay if a valid token with DEX pair or RugCheck report was verified,
+    // or if the user explicitly triggered a manual scan.
+    const isVerifiedToken = Boolean(
+      result.dex?.pair ||
+      result.rugcheck?.ok ||
+      (result.level && result.level !== "unknown")
+    );
+    const isManual = Boolean(state?.force || state?.reason === "manual");
+
+    if (!isVerifiedToken && !isManual && !state?.showOverlay) {
       removeOverlay();
       return;
     }
 
+    if (userDismissed && !isManual && !state?.showOverlay) {
+      return;
+    }
+
     const root = ensureOverlay();
-    root.querySelector(".rugscope")?.dispatchEvent(new Event("rugscope:destroy-chart"));
     const level = result.level || "unknown";
     const tokenTitle = result.token?.symbol || result.token?.name || "Token";
     const riskText = result.label ? `${result.label} risk` : "Unknown risk";
     const flags = Array.isArray(result.flags) ? result.flags.slice(0, overlayExpanded ? 8 : 1) : [];
     const facts = Array.isArray(result.facts) ? result.facts.slice(0, overlayExpanded ? 6 : 0) : [];
-    const chartHtml = overlayExpanded ? renderChart(result) : "";
     const matchListHtml = overlayExpanded ? renderWalletMatches(result.walletMatches || []) : "";
     const trackerHtml = overlayExpanded ? renderWalletTrackerShell(result) : "";
 
@@ -372,7 +586,7 @@
         }
         .top {
           display: grid;
-          grid-template-columns: 48px minmax(0, 1fr) auto;
+          grid-template-columns: 48px minmax(0, 1fr) auto auto;
           gap: 12px;
           align-items: center;
           padding: 13px 14px;
@@ -453,15 +667,44 @@
           text-transform: uppercase;
         }
         .collapsed .score {
-          min-width: 54px;
-          min-height: auto;
-          padding: 6px 7px;
-        }
-        .collapsed .score strong {
-          font-size: 14px;
-        }
-        .collapsed .score span {
           display: none;
+        }
+        .window-actions {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+          justify-content: flex-end;
+          cursor: default;
+        }
+        .top-control {
+          display: grid;
+          min-width: 34px;
+          min-height: 34px;
+          place-items: center;
+          padding: 0 9px;
+          border-radius: 7px;
+          font-size: 12px;
+          font-weight: 900;
+        }
+        .toggle-top {
+          min-width: 82px;
+        }
+        .collapsed .toggle-top {
+          min-width: 68px;
+        }
+        .close {
+          width: 36px;
+          min-width: 36px;
+          color: #fff;
+          background: rgba(255, 59, 112, 0.22);
+          border-color: rgba(255, 59, 112, 0.82);
+          box-shadow: 0 0 0 1px rgba(255, 59, 112, 0.18), 0 0 16px rgba(255, 59, 112, 0.36);
+          font-size: 19px;
+          line-height: 1;
+        }
+        .close:hover {
+          background: rgba(255, 59, 112, 0.38);
+          border-color: rgba(255, 133, 166, 0.96);
         }
         .body {
           max-height: calc(100vh - 116px);
@@ -513,7 +756,6 @@
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .chart-card,
         .tracker-card,
         .matches-card {
           margin-bottom: 10px;
@@ -536,58 +778,6 @@
         .card-head span {
           color: var(--rs-muted);
           font-size: 11px;
-        }
-        .chart-wrap {
-          position: relative;
-          overflow: hidden;
-          border-radius: 6px;
-          background: rgba(0, 0, 0, 0.24);
-        }
-        .tv-chart {
-          display: block;
-          width: 100%;
-          height: 238px;
-        }
-        .tv-marker-layer {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-        }
-        .tv-logo-marker {
-          position: absolute;
-          display: grid;
-          width: 25px;
-          height: 25px;
-          min-height: 25px;
-          place-items: center;
-          padding: 0;
-          border: 2px solid rgba(248, 239, 255, 0.9);
-          border-radius: 50%;
-          background: #30f2a2;
-          box-shadow: 0 0 14px rgba(168, 41, 255, 0.42);
-          pointer-events: auto;
-          transform: translate(-50%, -50%);
-        }
-        .tv-logo-marker.sell {
-          background: #ff3b70;
-        }
-        .tv-logo-marker.dev {
-          border-color: var(--rs-pink);
-          box-shadow: 0 0 0 3px rgba(255, 79, 216, 0.24), 0 0 18px rgba(255, 79, 216, 0.42);
-        }
-        .tv-logo-marker img {
-          width: 17px;
-          height: 17px;
-          border-radius: 50%;
-          object-fit: cover;
-        }
-        .chart-empty {
-          display: grid;
-          min-height: 132px;
-          place-items: center;
-          color: var(--rs-muted);
-          font-size: 12px;
-          text-align: center;
         }
         .tracker-row {
           display: grid;
@@ -771,25 +961,21 @@
           border-color: rgba(255, 79, 216, 0.58);
           background: rgba(168, 41, 255, 0.22);
         }
-        .close {
-          width: 34px;
-          min-width: 34px;
-          padding-left: 0;
-          padding-right: 0;
-        }
         .resize-handle {
           position: absolute;
-          right: 0;
-          bottom: 0;
-          width: 20px;
-          height: 20px;
-          border: 0;
-          border-radius: 0;
+          right: 6px;
+          bottom: 6px;
+          width: 30px;
+          height: 30px;
+          border: 1px solid rgba(248, 239, 255, 0.2);
+          border-radius: 8px 0 6px 0;
           background:
-            linear-gradient(135deg, transparent 0 45%, rgba(202, 126, 255, 0.62) 46% 55%, transparent 56%),
-            linear-gradient(135deg, transparent 0 63%, rgba(202, 126, 255, 0.36) 64% 73%, transparent 74%);
+            linear-gradient(135deg, transparent 0 46%, rgba(248, 239, 255, 0.8) 47% 53%, transparent 54%),
+            linear-gradient(135deg, transparent 0 62%, rgba(255, 79, 216, 0.76) 63% 70%, transparent 71%),
+            rgba(8, 5, 13, 0.7);
+          box-shadow: 0 0 14px rgba(168, 41, 255, 0.24);
           cursor: nwse-resize;
-          min-height: 20px;
+          min-height: 30px;
           padding: 0;
         }
         .collapsed .resize-handle {
@@ -818,6 +1004,10 @@
             <strong>${escapeHtml(String(Math.round(result.score || 0)))}</strong>
             <span>score</span>
           </div>
+          <div class="window-actions">
+            <button type="button" class="top-control toggle-top" data-action="toggle" aria-label="${overlayExpanded ? "Collapse Rugscope panel" : "Expand Rugscope panel"}">${overlayExpanded ? "Collapse" : "Expand"}</button>
+            <button type="button" class="top-control close" data-action="close" aria-label="Close Rugscope panel" title="Close">X</button>
+          </div>
         </div>
         <div class="body ${overlayExpanded ? "" : "compact"}">
           <div class="address">${escapeHtml(result.token?.displayAddress || result.address)}</div>
@@ -831,7 +1021,6 @@
               `).join("")}
             </div>
           ` : ""}
-          ${chartHtml}
           ${matchListHtml}
           ${trackerHtml}
           <div class="flags">
@@ -846,10 +1035,8 @@
             `).join("")}
           </div>
           <div class="actions">
-            <button type="button" data-action="toggle">${overlayExpanded ? "Collapse" : "Expand"}</button>
             <button type="button" data-action="refresh">Refresh</button>
             ${result.links?.dex ? `<a href="${escapeAttribute(result.links.dex)}" target="_blank" rel="noopener">DEX</a>` : ""}
-            <button type="button" class="close" data-action="close" aria-label="Close">x</button>
           </div>
         </div>
         <button type="button" class="resize-handle" data-action="resize" aria-label="Resize Rugscope panel"></button>
@@ -866,6 +1053,8 @@
     });
 
     root.querySelector("[data-action='close']")?.addEventListener("click", () => {
+      overlayVisible = false;
+      userDismissed = true;
       removeOverlay();
     });
 
@@ -884,6 +1073,7 @@
         if (labelInput) labelInput.value = "";
         populateWalletList(root, response.wallets || []);
         scheduleScan("wallet-add", true);
+        schedulePageMarkers(result);
       } else {
         setTrackerStatus(root, response?.error || "Could not add wallet.");
       }
@@ -899,6 +1089,7 @@
         if (response?.ok) {
           populateWalletList(root, response.wallets || []);
           scheduleScan("wallet-remove", true);
+          schedulePageMarkers(result);
         } else {
           setTrackerStatus(root, response?.error || "Could not remove wallet.");
         }
@@ -906,157 +1097,10 @@
     });
 
     if (overlayExpanded) {
-      initTradingViewChart(root, result);
       loadWalletTracker(root);
     }
     attachOverlayInteractions(root);
-  }
-
-  function renderChart(result) {
-    const chart = result.chart;
-    const candles = Array.isArray(chart?.candles) ? chart.candles : [];
-
-    if (!chart?.ok || candles.length < 2) {
-      const message = chart?.errors?.[0] || "Chart is loading or unavailable for this pool.";
-      return `
-        <div class="chart-card">
-          <div class="card-head">
-            <strong>Token chart</strong>
-            <span>${escapeHtml(chart?.source || "Market data")}</span>
-          </div>
-          <div class="chart-empty">${escapeHtml(message)}</div>
-        </div>
-      `;
-    }
-
-    return `
-      <div class="chart-card">
-        <div class="card-head">
-          <strong>Token chart</strong>
-          <span>TradingView Lightweight Charts - ${escapeHtml(chart.timeframe || "5m")}</span>
-        </div>
-        <div class="chart-wrap">
-          <div class="tv-chart" data-tv-chart></div>
-          <div class="tv-marker-layer" data-tv-marker-layer></div>
-        </div>
-      </div>
-    `;
-  }
-
-  function initTradingViewChart(root, result) {
-    const chartHost = root.querySelector("[data-tv-chart]");
-    const markerLayer = root.querySelector("[data-tv-marker-layer]");
-    const chartData = result?.chart;
-    const candles = Array.isArray(chartData?.candles) ? chartData.candles : [];
-    const markers = Array.isArray(chartData?.markers) ? chartData.markers : [];
-    const library = window.LightweightCharts;
-
-    if (!chartHost || !markerLayer || !library || candles.length < 2) {
-      return;
-    }
-
-    const candleData = candles.map((candle) => ({
-      time: candle.time,
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close
-    }));
-    const candleByTime = new Map(candleData.map((candle) => [String(candle.time), candle]));
-    const chart = library.createChart(chartHost, {
-      autoSize: true,
-      layout: {
-        background: { color: "rgba(0, 0, 0, 0)" },
-        textColor: "#b9a5cf",
-        attributionLogo: true
-      },
-      grid: {
-        vertLines: { color: "rgba(202, 126, 255, 0.10)" },
-        horzLines: { color: "rgba(202, 126, 255, 0.10)" }
-      },
-      rightPriceScale: {
-        borderColor: "rgba(202, 126, 255, 0.18)",
-        scaleMargins: {
-          top: 0.18,
-          bottom: 0.16
-        }
-      },
-      timeScale: {
-        borderColor: "rgba(202, 126, 255, 0.18)",
-        timeVisible: true,
-        secondsVisible: false
-      },
-      crosshair: {
-        mode: library.CrosshairMode?.Magnet ?? 1,
-        vertLine: { color: "rgba(255, 79, 216, 0.35)" },
-        horzLine: { color: "rgba(255, 79, 216, 0.35)" }
-      }
-    });
-    const candleSeries = chart.addSeries(library.CandlestickSeries, {
-      upColor: "#30f2a2",
-      downColor: "#ff3b70",
-      borderUpColor: "#30f2a2",
-      borderDownColor: "#ff3b70",
-      wickUpColor: "#30f2a2",
-      wickDownColor: "#ff3b70",
-      priceFormat: {
-        type: "price",
-        precision: 8,
-        minMove: 0.00000001
-      }
-    });
-
-    candleSeries.setData(candleData);
-    if (library.createSeriesMarkers && markers.length) {
-      library.createSeriesMarkers(candleSeries, markers.slice(0, 40).map((marker) => ({
-        time: marker.candleTime || marker.timestamp,
-        position: marker.kind === "sell" ? "aboveBar" : "belowBar",
-        color: marker.kind === "sell" ? "#ff3b70" : "#30f2a2",
-        shape: marker.kind === "sell" ? "arrowDown" : "arrowUp",
-        text: marker.isDev ? "DEV" : shortAddress(marker.walletLabel || "Wallet"),
-        size: marker.isDev ? 1.25 : 1
-      })));
-    }
-
-    chart.timeScale().fitContent();
-
-    const drawLogoMarkers = () => {
-      markerLayer.innerHTML = markers.slice(0, 24).map((marker) => {
-        const time = marker.candleTime || marker.timestamp;
-        const candle = candleByTime.get(String(time)) || candleData.find((item) => item.time >= time) || candleData[candleData.length - 1];
-        const x = chart.timeScale().timeToCoordinate(candle.time);
-        const price = Number(marker.priceUsd) || candle.close;
-        const y = candleSeries.priceToCoordinate(price);
-
-        if (x == null || y == null) {
-          return "";
-        }
-
-        const side = marker.kind === "sell" ? "sell" : "buy";
-        const title = `${marker.walletLabel || "Tracked wallet"} ${side} ${marker.amount || ""} ${marker.tokenSymbol || ""} ${marker.volumeUsd ? formatUsd(marker.volumeUsd) : ""}`;
-        return `
-          <button class="tv-logo-marker ${escapeAttribute(side)} ${marker.isDev ? "dev" : ""}" type="button" title="${escapeAttribute(title)}" style="left:${x.toFixed(2)}px; top:${y.toFixed(2)}px;">
-            <img src="${escapeAttribute(chrome.runtime.getURL("assets/icon48.png"))}" alt="">
-          </button>
-        `;
-      }).join("");
-    };
-
-    drawLogoMarkers();
-    chart.timeScale().subscribeVisibleTimeRangeChange(drawLogoMarkers);
-
-    const resizeObserver = new ResizeObserver(() => {
-      chart.resize(chartHost.clientWidth, chartHost.clientHeight);
-      drawLogoMarkers();
-    });
-    resizeObserver.observe(chartHost);
-
-    const panel = root.querySelector(".rugscope");
-    const cleanup = () => {
-      resizeObserver.disconnect();
-      chart.remove();
-    };
-    panel?.addEventListener("rugscope:destroy-chart", cleanup, { once: true });
+    schedulePageMarkers(result);
   }
 
   function renderWalletMatches(matches) {
@@ -1148,6 +1192,7 @@
         if (response?.ok) {
           populateWalletList(root, response.wallets || []);
           scheduleScan("wallet-remove", true);
+          schedulePageMarkers();
         } else {
           setTrackerStatus(root, response?.error || "Could not remove wallet.");
         }
@@ -1160,6 +1205,247 @@
     if (node) {
       node.textContent = message;
     }
+  }
+
+  function schedulePageMarkers(result) {
+    window.clearTimeout(markerTimer);
+    markerTimer = window.setTimeout(() => renderPageWalletMarkers(result), 180);
+  }
+
+  async function renderPageWalletMarkers(result) {
+    const activeResult = result || currentScanResult || await getActiveResultForMarkers();
+    const targets = await buildPageMarkerTargets(activeResult);
+
+    clearPageWalletMarkers();
+    if (!targets.length) {
+      return;
+    }
+
+    ensurePageMarkerStyle();
+
+    const elements = Array.from(document.querySelectorAll("a, span, div, p, td, th, button, li, strong, small, code"))
+      .filter(isPageMarkerCandidate)
+      .sort((a, b) => textForMarkerElement(a).length - textForMarkerElement(b).length)
+      .slice(0, 2600);
+
+    let marked = 0;
+    for (const element of elements) {
+      if (marked >= PAGE_MARKER_LIMIT) {
+        break;
+      }
+      if (element.querySelector("[data-rugscope-page-wallet-marker]")) {
+        continue;
+      }
+
+      const hit = findPageMarkerHit(element, targets);
+      if (!hit) {
+        continue;
+      }
+
+      appendPageMarker(element, hit);
+      marked += 1;
+    }
+  }
+
+  async function getActiveResultForMarkers() {
+    const response = await chrome.runtime.sendMessage({ type: "rugscope:get-active-tab-scan" }).catch(() => null);
+    return response?.state?.result || null;
+  }
+
+  async function buildPageMarkerTargets(result) {
+    const response = await chrome.runtime.sendMessage({ type: "rugscope:get-wallets" }).catch(() => null);
+    const wallets = response?.ok && Array.isArray(response.wallets) ? response.wallets : [];
+    const map = new Map();
+
+    for (const wallet of wallets) {
+      addPageMarkerTarget(map, {
+        address: wallet.address,
+        label: wallet.label || "Tracked wallet",
+        kind: "tracked",
+        detail: "Tracked wallet",
+        priority: 20
+      });
+    }
+
+    if (result?.creatorWallet) {
+      addPageMarkerTarget(map, {
+        address: result.creatorWallet,
+        label: "Creator/Dev",
+        kind: "dev",
+        detail: "Token creator wallet",
+        priority: 80
+      });
+    }
+
+    for (const match of Array.isArray(result?.walletMatches) ? result.walletMatches : []) {
+      addPageMarkerTarget(map, {
+        address: match.walletAddress,
+        label: match.walletLabel || "Tracked wallet",
+        kind: match.kind === "sell" ? "sell" : "buy",
+        detail: formatMatchDetail(match),
+        txUrl: match.txUrl || "",
+        priority: match.isDev ? 90 : 60
+      });
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.priority - a.priority);
+  }
+
+  function addPageMarkerTarget(map, target) {
+    const address = String(target.address || "").trim();
+    if (!address) {
+      return;
+    }
+
+    const key = address.toLowerCase();
+    const needles = Array.from(new Set([
+      address,
+      address.toLowerCase(),
+      shortAddress(address),
+      compactAddress(address, 4),
+      compactAddress(address, 5)
+    ].filter(Boolean).map((value) => value.toLowerCase())));
+
+    const existing = map.get(key);
+    const next = {
+      ...target,
+      address,
+      needles,
+      priority: Number(target.priority) || 0
+    };
+
+    if (!existing || next.priority >= existing.priority) {
+      map.set(key, next);
+    }
+  }
+
+  function isPageMarkerCandidate(element) {
+    if (!element || element.closest("rugscope-scan, script, style, textarea, input, select, [data-rugscope-page-wallet-marker]")) {
+      return false;
+    }
+
+    const text = textForMarkerElement(element);
+    if (text.length < 8 || text.length > 220) {
+      return false;
+    }
+
+    const style = window.getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  }
+
+  function textForMarkerElement(element) {
+    return [
+      element.textContent || "",
+      element.getAttribute?.("title") || "",
+      element.getAttribute?.("aria-label") || "",
+      element.getAttribute?.("href") || ""
+    ].join(" ").trim();
+  }
+
+  function findPageMarkerHit(element, targets) {
+    const haystack = textForMarkerElement(element).toLowerCase();
+    for (const target of targets) {
+      if (target.needles.some((needle) => needle.length >= 8 && haystack.includes(needle))) {
+        return target;
+      }
+    }
+    return null;
+  }
+
+  function appendPageMarker(element, target) {
+    const marker = document.createElement("span");
+    marker.className = `rugscope-page-wallet-marker ${target.kind || "tracked"}`;
+    marker.dataset.rugscopePageWalletMarker = "true";
+    marker.textContent = markerTextForTarget(target);
+    marker.title = `${target.label || "Tracked wallet"} - ${target.detail || target.address}`;
+
+    if (target.txUrl) {
+      marker.setAttribute("role", "link");
+      marker.setAttribute("tabindex", "0");
+      marker.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.open(target.txUrl, "_blank", "noopener");
+      });
+      marker.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          window.open(target.txUrl, "_blank", "noopener");
+        }
+      });
+    }
+
+    element.appendChild(marker);
+  }
+
+  function markerTextForTarget(target) {
+    if (target.kind === "dev") return "Rugscope Dev";
+    if (target.kind === "sell") return "Rugscope Sell";
+    if (target.kind === "buy") return "Rugscope Buy";
+    return "Rugscope Wallet";
+  }
+
+  function clearPageWalletMarkers() {
+    document.querySelectorAll("[data-rugscope-page-wallet-marker]").forEach((node) => node.remove());
+  }
+
+  function ensurePageMarkerStyle() {
+    if (document.getElementById("rugscope-page-marker-style")) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.id = "rugscope-page-marker-style";
+    style.textContent = `
+      .rugscope-page-wallet-marker {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        min-height: 20px !important;
+        max-width: 132px !important;
+        margin-left: 6px !important;
+        padding: 3px 7px !important;
+        border: 1px solid rgba(248, 239, 255, 0.72) !important;
+        border-radius: 999px !important;
+        color: #06100c !important;
+        background: linear-gradient(135deg, #30f2a2, #a6ffd9) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32), 0 0 0 2px rgba(48, 242, 162, 0.18) !important;
+        font: 800 11px/1 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+        letter-spacing: 0 !important;
+        text-transform: none !important;
+        white-space: nowrap !important;
+        vertical-align: middle !important;
+        cursor: default !important;
+        pointer-events: auto !important;
+        position: relative !important;
+        z-index: 2147483646 !important;
+      }
+      .rugscope-page-wallet-marker.buy {
+        background: linear-gradient(135deg, #30f2a2, #a6ffd9) !important;
+      }
+      .rugscope-page-wallet-marker.sell {
+        color: #1a0309 !important;
+        background: linear-gradient(135deg, #ff3b70, #ff9ab7) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32), 0 0 0 2px rgba(255, 59, 112, 0.2) !important;
+      }
+      .rugscope-page-wallet-marker.dev {
+        color: #12031a !important;
+        background: linear-gradient(135deg, #ff4fd8, #d8a6ff) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32), 0 0 0 2px rgba(255, 79, 216, 0.22) !important;
+      }
+      .rugscope-page-wallet-marker.tracked {
+        background: linear-gradient(135deg, #b582ff, #d8c6ff) !important;
+      }
+      .rugscope-page-wallet-marker[role="link"] {
+        cursor: pointer !important;
+      }
+    `;
+    document.documentElement.appendChild(style);
   }
 
   function formatMatchDetail(match) {
@@ -1181,14 +1467,6 @@
     }).format(number);
   }
 
-  function formatPrice(value) {
-    const number = Number(value);
-    if (!Number.isFinite(number)) return "";
-    if (number >= 1000) return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(number);
-    if (number >= 1) return number.toFixed(2);
-    return number.toPrecision(3);
-  }
-
   function formatChartTime(timestamp) {
     const number = Number(timestamp);
     if (!Number.isFinite(number)) return "";
@@ -1201,6 +1479,11 @@
   function shortAddress(address) {
     const value = String(address || "");
     return value.length > 14 ? `${value.slice(0, 6)}...${value.slice(-6)}` : value;
+  }
+
+  function compactAddress(address, size) {
+    const value = String(address || "");
+    return value.length > size * 2 + 3 ? `${value.slice(0, size)}...${value.slice(-size)}` : value;
   }
 
   function clampNumber(value, min, max) {

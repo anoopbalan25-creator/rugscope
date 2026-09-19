@@ -1,6 +1,6 @@
 # Rugscope Chrome Extension
 
-Rugscope is a Manifest V3 Chrome extension that scans the active page for crypto token contract or mint addresses and shows risk signals in a page overlay and popup.
+Rugscope is a Manifest V3 Chrome extension that scans the active page for crypto token contract or mint addresses, shows risk signals in a page overlay and popup, badges tracked wallet matches on the viewed page, and stores wallet alerts locally.
 
 ## Install Locally
 
